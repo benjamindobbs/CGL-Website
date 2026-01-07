@@ -1,0 +1,683 @@
+/* General Styles */
+body,
+html {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #F9F9F9;
+    /* Off-white */
+}
+
+
+
+/* Header Styles */
+header {
+    background-color: rgba(255, 255, 255, 0.9);
+    padding: 1rem 5%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid #1B75BB;
+}
+
+.logo img {
+    height: 40px;
+    /* Adjust based on your logo */
+    display: block;
+}
+
+.contact-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+.btn {
+    background-color: #1B75BB;
+    color: white;
+    text-decoration: none;
+    padding: 8px 16px;
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    transition: opacity 0.2s;
+}
+
+.btn:hover {
+    opacity: 0.8;
+}
+
+/* Navigation Bar */
+nav {
+    background-color: #F2F2F2;
+    /* Slightly off-white */
+    padding: 0.5rem 5%;
+    display: flex;
+    gap: 20px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+nav a {
+    text-decoration: none;
+    color: #333;
+    font-weight: 500;
+    padding: 5px 10px;
+}
+
+nav a:hover {
+    color: #1B75BB;
+}
+
+
+/* Carousel Container */
+.carousel-container {
+    position: fixed;
+    top: 55%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 40vw;
+    aspect-ratio: 1 / 1;
+    z-index: 2;
+    overflow: hidden;
+    border-radius: 15px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+}
+.carousel-track {
+    display: flex;
+    /* width is 100% * number of images */
+    width: 1200%; 
+    /* Increased duration to 40s so 10 images aren't flying by too fast */
+    animation: scroll 80s infinite cubic-bezier(0.45, 0, 0.55, 1);
+    font-size: 0;
+}
+
+.carousel-track img {
+    width: 9.09%; /* 100% divided by 10 images */
+    aspect-ratio: 1 / 1;
+    /* 'contain' shows the WHOLE photo with padding if needed */
+    /* 'cover' fills the square but crops the edges */
+    object-fit: cover; 
+    background-color: #F9F9F9; /* Fills gaps if image isn't perfectly square */
+}
+
+/* The timeline is 100%. We have 11 transitions.
+   Each "stop" is roughly 9% of the timeline.
+*/
+@keyframes scroll {
+    0%, 7%      { transform: translateX(0); }
+    9%, 16%     { transform: translateX(-8.3333%); }  /* Image 2 */
+    18%, 25%    { transform: translateX(-16.6666%); } /* Image 3 */
+    27%, 34%    { transform: translateX(-24.9999%); } /* Image 4 */
+    36%, 43%    { transform: translateX(-33.3333%); } /* Image 5 */
+    45%, 52%    { transform: translateX(-41.6666%); } /* Image 6 */
+    54%, 61%    { transform: translateX(-49.9999%); } /* Image 7 */
+    63%, 70%    { transform: translateX(-58.3333%); } /* Image 8 */
+    72%, 79%    { transform: translateX(-66.6666%); } /* Image 9 */
+    81%, 88%    { transform: translateX(-74.9999%); } /* Image 10 */
+    90%, 97%    { transform: translateX(-83.3333%); } /* Image 11 */
+    100%        { transform: translateX(-91.6666%); } /* Slide to the Ghost Image 1, then snap to start */
+}
+/* Responsive Adjustments for Mobile */
+@media (max-width: 768px) {
+    .carousel-container {
+        width: 90vw; /* Wider on mobile for better visibility */
+        top: 40%;    /* Adjust vertical position if needed */
+    }
+
+    /* Adjust the Overlay Text */
+    .content h1 {
+        font-size: 1.5rem; /* Smaller font for small screens */
+        padding: 10px 15px;
+    }
+
+    .content p {
+        font-size: 0.9rem;
+        padding: 0 10px;
+    }
+}
+/* Content Layer */
+.content {
+    position: absolute; /* Relative to .carousel-container */
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    
+    /* Centering the text */
+    display: flex;
+    flex-direction: column;
+    justify-content:flex-end;
+    align-items: center;
+    
+    text-align: center;
+    color: white;
+    z-index: 5; /* Sits above the images */
+    
+    /* Optional: Slight dark tint so text pops regardless of image brightness */
+    background: rgba(0, 0, 0, 0.2); 
+    pointer-events: none; /* Allows clicks to pass through to images if needed */
+}
+
+.content h1 {
+    /* Font sizing */
+    font-size: 2.5rem;
+    margin: 0;
+    
+    /* Center the text inside the blue box */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    
+    /* The blue background */
+    background-color: rgba(27, 117, 187, 0.9); /* Your #1B75BB blue */
+    color: white;
+    
+    /* Padding provides the "box" around the text */
+    /* Adjust these numbers to change the box size */
+    padding: 20px 40px; 
+    
+    /* Visual styling */
+    text-shadow: 2px 2px 8px rgba(0,0,0,0.5);
+    border-radius: 8px;
+    
+    /* Ensure it doesn't get wider than the carousel */
+    max-width: 80%;
+    line-height: 1.2;
+}
+
+.content p {
+    margin-top: 10px;
+    font-size: 1.1rem;
+    text-shadow: 1px 1px 4px rgba(0,0,0,0.8);
+    font-weight: 500;
+}
+
+/* Styling the link in the subtext */
+.content p a {
+    /* 1. Reset defaults */
+    color: #FFFFFF; /* Match the paragraph text color */
+    text-decoration: none; /* Remove the underline */
+    
+    /* 2. Modernize */
+    font-weight: 600;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.3); /* Subtle "indicator" line */
+    transition: all 0.3s ease; /* Smooth color fade */
+    
+    /* 3. Enable interaction */
+    pointer-events: auto; /* Overrides the 'none' from the parent container */
+    cursor: pointer;
+}
+
+/* Hover State */
+.content p a:hover {
+    color: #1B75BB; /* Changes to your brand blue */
+    border-bottom-color: #1B75BB; /* Line changes color too */
+    background-color: rgba(255, 255, 255, 0.9); /* Slight highlight background */
+    border-radius: 4px;
+    padding: 2px 6px; /* Gives the hover effect some "room" */
+}
+
+/* About Page Styles */
+.about-container {
+    max-width: 1200px;
+    margin: 50px auto;
+    padding: 0 5%;
+    animation: fadeIn 0.8s ease-out;
+}
+
+.about-hero {
+    display: grid;
+    grid-template-columns: 1fr 1fr; /* Side-by-side layout */
+    gap: 50px;
+    align-items: center;
+    background: white;
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 15px 35px rgba(0,0,0,0.05);
+}
+
+.about-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.about-text {
+    padding: 60px;
+}
+
+.subtitle {
+    color: #1B75BB;
+    font-weight: 800;
+    letter-spacing: 2px;
+    font-size: 0.8rem;
+}
+
+.about-text h2 {
+    font-size: 2.5rem;
+    margin: 15px 0;
+    color: #333;
+}
+
+.about-text p {
+    line-height: 1.8;
+    color: #666;
+    margin-bottom: 20px;
+}
+
+.values-grid {
+    display: flex;
+    gap: 30px;
+    margin-top: 40px;
+    border-top: 1px solid #eee;
+    padding-top: 30px;
+}
+
+.value-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.value-item .material-symbols-outlined {
+    color: #1B75BB;
+    font-size: 2rem;
+}
+
+.value-item h4 {
+    margin: 0;
+    font-size: 1rem;
+    color: #444;
+}
+
+/* Responsive fix for About Page */
+@media (max-width: 900px) {
+    .about-hero {
+        grid-template-columns: 1fr; /* Stack on top of each other on mobile */
+    }
+    .about-text {
+        padding: 40px 20px;
+    }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.progress-section {
+    margin-top: 80px;
+    text-align: center;
+}
+
+.progress-header {
+    margin-bottom: 50px;
+}
+
+.progress-header h3 {
+    font-size: 2.2rem;
+    color: #333;
+    margin-top: 10px;
+}
+
+/* Progress Section with Timeline Line */
+.timeline-layout {
+    display: grid;
+    /* Force 5 columns */
+    grid-template-columns: repeat(5, 1fr); 
+    gap: 10px;
+    position: relative;
+    padding: 40px 0;
+}
+
+/* The Connecting Line */
+.timeline-layout::before {
+    content: '';
+    position: absolute;
+    top: 130px; /* Aligns with the middle of your 180px circles */
+    left: 10%;
+    right: 10%;
+    height: 4px;
+    background-color: #F2F2F2; /* Light gray line */
+    z-index: 0;
+}
+
+.milestone-card {
+    background: transparent; /* Changed to transparent for a sleeker timeline look */
+    box-shadow: none;
+    position: relative;
+    z-index: 1;
+    padding: 0;
+}
+
+.circle-frame {
+    width: 150px; /* Scaled down slightly to fit 5 per row comfortably */
+    height: 150px;
+    margin: 0 auto 20px;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 6px solid #F9F9F9; /* Thick border to "cut" the line */
+    background-color: white;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+}
+
+.circle-frame img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.milestone-card:hover .circle-frame {
+    border-color: #1B75BB;
+    transform: scale(1.1);
+}
+
+.milestone-card h4 {
+    font-size: 1.1rem;
+    margin-bottom: 5px;
+}
+
+.milestone-desc {
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+/* Responsive: Stack vertically on small screens */
+@media (max-width: 1000px) {
+    .timeline-layout {
+        grid-template-columns: 1fr;
+        gap: 50px;
+    }
+    .timeline-layout::before {
+        display: none; /* Hide the horizontal line on mobile */
+    }
+}
+
+
+/* Modern Layout Base */
+.form-page {
+    background-color: #F9F9F9; /* Your off-white */
+    background-image: radial-gradient(circle at 10% 20%, rgba(27, 117, 187, 0.05) 0%, transparent 40%);
+    min-height: 100vh;
+}
+
+.form-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 80px 20px;
+}
+
+/* Glassmorphism Form Card */
+.order-form {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    padding: 25px;
+    border-radius: 24px;
+    width: 100%;
+    max-width: 550px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease;
+}
+
+
+
+.order-form h2 {
+    font-size: 2rem;
+    font-weight: 800;
+    color: #222;
+    letter-spacing: -0.5px;
+    margin-bottom: 8px;
+}
+
+.order-form p {
+    font-size: 1rem;
+    color: #666;
+    margin-bottom: 40px;
+}
+
+/* Modernized Inputs */
+.form-group {
+    margin-bottom: 24px;
+}
+
+.form-group label {
+    display: block;
+    font-weight: 700;
+    margin-bottom: 10px;
+    color: #444;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.form-group select, 
+.form-group input {
+    width: 100%;
+    padding: 14px 18px;
+    background-color: #FFFFFF;
+    border: 2px solid #EEE;
+    border-radius: 12px;
+    font-family: inherit;
+    font-size: 1rem;
+    color: #333;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.02) inset;
+}
+
+/* The Blue Highlight Interaction */
+.form-group select:focus, 
+.form-group input:focus {
+    outline: none;
+    border-color: #1B75BB;
+    box-shadow: 0 0 0 4px rgba(27, 117, 187, 0.15); /* Soft Blue Glow */
+    background-color: #FFF;
+}
+
+.form-group select:disabled {
+    background-color: #F2F2F2;
+    cursor: not-allowed;
+    color: #999;
+}
+
+/* Sleek Divider */
+.form-divider {
+    border: 0;
+    height: 1px;
+    background: linear-gradient(to right, transparent, #EEE, transparent);
+    margin: 40px 0;
+}
+
+/* Modern Button with Gradient Hover */
+.submit-btn {
+    width: 100%;
+    background: #1B75BB;
+    color: white;
+    padding: 18px;
+    border: none;
+    border-radius: 12px;
+    font-size: 1.1rem;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 10px 15px -3px rgba(27, 117, 187, 0.3);
+    transition: all 0.3s ease;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+}
+
+.submit-btn:hover {
+    background: #155a8a;
+    box-shadow: 0 20px 25px -5px rgba(27, 117, 187, 0.4);
+    transform: scale(1.02);
+}
+
+.submit-btn:active {
+    transform: scale(0.98);
+}
+
+.price-display {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(27, 117, 187, 0.05);
+    padding: 20px;
+    border-radius: 12px;
+    margin: 30px 0;
+    border: 1px dashed #1B75BB;
+}
+
+.price-display span:first-child {
+    font-weight: 700;
+    color: #444;
+    text-transform: uppercase;
+    font-size: 0.8rem;
+}
+
+#total-price {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: #1B75BB;
+    transition: transform 0.2s ease;
+}
+
+.swatch-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 12px;
+    margin-top: 10px;
+}
+
+.swatch-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 10px;
+    border: 2px solid #EEE;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: white;
+}
+
+.swatch-item:hover {
+    border-color: #1B75BB;
+    transform: translateY(-2px);
+}
+
+.swatch-item.active {
+    border-color: #1B75BB;
+    background-color: rgba(27, 117, 187, 0.05);
+}
+
+.color-circle {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    margin-bottom: 8px;
+    border: 1px solid rgba(0,0,0,0.1); /* Helps light colors like Bone/Artic stand out */
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.swatch-item span {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #444;
+}
+
+.placeholder-text {
+    font-size: 0.85rem;
+    color: #999;
+    font-style: italic;
+    grid-column: 1 / -1;
+}
+/* Ensure the hidden price input doesn't take up space */
+#hidden-price {
+    display: none;
+}
+
+/* Thank You Page Specifics */
+.thanks-card {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    padding: 60px 40px;
+    border-radius: 24px;
+    width: 100%;
+    max-width: 500px;
+    
+    /* ADD THESE THREE LINES: */
+    display: flex;
+    flex-direction: column;
+    align-items: center; 
+    
+    text-align: center;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.success-icon {
+    color: #1B75BB;
+    margin-bottom: 20px;
+}
+
+.success-icon .material-symbols-outlined {
+    font-size: 80px;
+    animation: pulse 2s infinite;
+}
+
+.thanks-card h1 {
+    font-size: 2.2rem;
+    color: #222;
+    margin-bottom: 15px;
+}
+
+.order-steps {
+    display: flex;
+    justify-content: center;
+    gap: 30px;
+    margin: 30px 0;
+    padding: 20px;
+    background: rgba(27, 117, 187, 0.05);
+    border-radius: 12px;
+}
+
+.step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #555;
+    text-transform: uppercase;
+}
+
+.return-home {
+    text-decoration: none;
+    margin-top: 30px;
+    
+    /* ENSURE WIDTH IS CONTROLLED */
+    width: 100%; 
+    max-width: 250px; /* Limits the button width so it doesn't stretch too far */
+    box-sizing: border-box;
+}
+
+/* Animations */
+@keyframes slideUp {
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.1); opacity: 0.8; }
+    100% { transform: scale(1); opacity: 1; }
+}
