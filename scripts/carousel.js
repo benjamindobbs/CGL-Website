@@ -10,18 +10,17 @@ const photos = [
     { src: 'assets/carousel/carousel-09.JPG', caption: 'Place Holder' },
     { src: 'assets/carousel/carousel-10.JPG', caption: 'Place Holder' },
     { src: 'assets/carousel/carousel-11.JPG', caption: 'Place Holder' },
+    { src: "assets/carousel/carousel-01.jpg", caption: 'Place Holder' }
 
 ];
 
 document.addEventListener('DOMContentLoaded', () => {
     const grid = document.getElementById('carousel-track');
 
-    photos.forEach((photo, index) => {
+    photos.forEach((photo) => {
         const card = document.createElement('img');
         card.className = 'carousel-track';
         
-        // Stagger the animation so they pop in one by one
-        card.style.animationDelay = `${index * 0.1}s`;
 
         card.src= photo.src;
         card.alt= photo.caption;
