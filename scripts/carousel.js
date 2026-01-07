@@ -1,5 +1,5 @@
 const photos = [
-    { src: "assets/carousel/carousel-01.jpg", caption: 'Place Holder' },
+    { src: "assets/carousel/carousel-01.JPG", caption: 'Place Holder' },
     { src: 'assets/carousel/carousel-02.JPG', caption: 'Place Holder' },
     { src: 'assets/carousel/carousel-03.JPG', caption: 'Place Holder' },
     { src: 'assets/carousel/carousel-04.JPG', caption: 'Place Holder' },
@@ -10,7 +10,7 @@ const photos = [
     { src: 'assets/carousel/carousel-09.JPG', caption: 'Place Holder' },
     { src: 'assets/carousel/carousel-10.JPG', caption: 'Place Holder' },
     { src: 'assets/carousel/carousel-11.JPG', caption: 'Place Holder' },
-    { src: "assets/carousel/carousel-01.jpg", caption: 'Place Holder' }
+    { src: "assets/carousel/carousel-01.JPG", caption: 'Place Holder' }
 
 ];
 
