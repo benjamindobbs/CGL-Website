@@ -10,7 +10,7 @@
         href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
 </head>
 
-<body>
+<body class="form=page">
     <div class="nav-container">
         <header>
             <div class="logo">
@@ -31,75 +31,112 @@
             <a href="../pages/quick-order.html" class="nav-tab">Quick Order</a>
         </nav>
     </div>
-
-
     <main class="form-container">
-        <form action="https://formspree.io/f/xojvgvjz" method="POST" class="order-form">
-            <h2>Complete Your Pre-Order For the Tradition Line</h2>
-            <p>Please provide your details and selections below.</p>
+        <div class="order-grid">
 
-            <div class="form-group">
-                <label for="name">Full Name</label>
-                <input type="text" name="name" id="name" placeholder="John Doe" required>
-            </div>
+            <section class="config-card">
+                <h2>1. Configure Item</h2>
 
-            <div class="form-group">
-                <label for="email">Email Address</label>
-                <input type="email" name="email" id="email" placeholder="12345@students.hartfordschools.org" required>
-            </div>
 
-            <div class="form-group">
-                <label for="student_id">Student ID <span class="optional">(Optional)</span></label>
-                <input type="text" name="student_id" id="student_id" placeholder="12345678">
-            </div>
-
-            <hr class="form-divider">
-
-            <div class="form-group">
-                <label for="style">Style</label>
-                <select name="style" id="style" required onchange="updateColors()">
-                    <option value="" disabled selected>Select Style</option>
-                    <option value="Unisex">Unisex</option>
-                    <option value="Womens">Womens</option>
-                </select>
-            </div>
-
-            <div class="form-group">
-                <label for="size">Size</label>
-                <select name="size" id="size" required>
-                    <option value="" disabled selected>Select Size</option>
-                    <option value="S">S</option>
-                    <option value="M">M</option>
-                    <option value="L">L</option>
-                    <option value="XL">XL</option>
-                    <option value="2XL">2XL</option>
-                    <option value="3XL">3XL</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label for="finish">Design Style</label>
-                <select name="finish" id="finish" required onchange="updatePrice()">
-                    <option value="" disabled selected>Select Finish</option>
-                    <option value="Raised Print">Raised Print</option>
-                    <option value="Embossed Embroidery">Embossed Embroidery</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label>Select Color</label>
-                <div id="color-swatch-container" class="swatch-grid">
-                    <p class="placeholder-text">Please select a style first...</p>
+                <div class="form-group">
+                    <label for="style">Style</label>
+                    <select id="style" required onchange="updateColors()">
+                        <option value="" disabled selected>Select Style</option>
+                        <option value="Unisex">Unisex Hoodie</option>
+                        <option value="Womens">Womens Crew</option>
+                    </select>
                 </div>
-                <input type="hidden" name="color" id="selected-color" required>
-            </div>
-            <div class="price-display">
-                <span>Estimated Total:</span>
-                <span id="total-price">$0</span>
-                <input type="hidden" name="estimated_total" id="hidden-price" value="$0">
-            </div>
 
-            <button type="submit" class="submit-btn">Place Order</button>
+                <div class="form-group">
+                    <label for="size">Size</label>
+                    <select id="size">
+                        <option value="S">Small</option>
+                        <option value="M">Medium</option>
+                        <option value="L">Large</option>
+                        <option value="XL">Extra Large</option>
+                        <option value="2XL">2 Extra Large</option>
+                        <option value="3XL">3 Extra Large</option>
+                    </select>
+                </div>
 
-        </form>
+                <div class="form-group">
+                    <label for="finish">Print Finish</label>
+                    <select id="finish" required onchange="updateLinePrice()">
+                        <option value="" disabled selected>Select Finish</option>
+                        <option value="Raised Print">Raised Print</option>
+                        <option value="Embossed Embroidery">Embossed Embroidery</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Color</label>
+                    <div id="color-swatch-container" class="swatch-grid">
+                        <p class="placeholder-text">Please select a style first...</p>
+                    </div>
+                    <input type="hidden" id="selected-color">
+                </div>
+
+                <div class="form-group">
+                    <label>Quantity</label>
+                    <div class="quantity-controls">
+                        <button type="button" onclick="changeQty(-1)">−</button>
+                        <input type="number" id="quantity" value="1" min="1" readonly>
+                        <button type="button" onclick="changeQty(1)">+</button>
+                    </div>
+                </div>
+
+                <div class="line-item-preview">
+                    <p>Item Subtotal: <span id="line-item-total">$0</span></p>
+                </div>
+
+                <button type="button" id="add-to-cart-btn" class="secondary-btn">
+                    Add Item to Order
+                </button>
+            </section>
+
+            <section class="cart-card">
+                <h2>2. Your Cart</h2>
+
+                <form action="https://formspree.io/f/xojvgvjz" method="POST" id="master-order-form">
+
+                    <div id="cart-items-display">
+                        <p class="placeholder-text">Your cart is empty.</p>
+                    </div>
+
+                    <div class="price-display">
+                        <span>Grand Total:</span>
+                        <span id="total-price">$0</span>
+                    </div>
+
+                    <hr class="form-divider">
+
+                    <h2>3. Customer Details</h2>
+
+                    <div class="form-group">
+                        <label for="name">Full Name</label>
+                        <input type="text" name="name" id="name" placeholder="John Doe" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="email">Email Address</label>
+                        <input type="email" name="email" id="email" placeholder="12345@students.hartfordschools.org"
+                            required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="student_id">Student ID (Optional)</label>
+                        <input type="text" name="student_id" id="student_id">
+                    </div>
+
+                    <input type="hidden" name="full_order_details" id="hidden-cart-data">
+
+                    <button type="button" id="submit-order-btn" class="submit-btn" onclick="submitFinalOrder()">
+                        Place Order
+                    </button>
+                </form>
+            </section>
+
+        </div>
     </main>
 
     <script src="../scripts/order-form.js"></script>

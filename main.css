@@ -605,6 +605,149 @@ nav a:hover {
     display: none;
 }
 
+.line-item-preview {
+    margin-top: 20px;
+    padding: 10px 0;
+    border-top: 1px solid #f0f0f0;
+    text-align: right;
+}
+
+.line-item-preview p {
+    font-size: 0.9rem;
+    color: #666;
+    font-weight: 600;
+}
+
+#line-item-total {
+    font-size: 1.2rem;
+    color: #1B75BB;
+    font-weight: 800;
+    margin-left: 5px;
+    display: inline-block;
+    transition: transform 0.2s ease;
+}
+
+/* The "Pop" animation when price updates */
+.price-pop {
+    transform: scale(1.1);
+    color: #27ae60; /* Briefly turns green on update */
+}
+
+/* Cart Style */
+.order-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+    max-width: 1000px;
+    width: 100%;
+}
+
+.config-card {
+    background: white;
+    padding: 30px;
+    border-radius: 20px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+}
+
+.cart-item-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid #eee;
+    font-size: 0.9rem;
+}
+
+.cart-item-row button {
+    background: #ff4d4d;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-left: 10px;
+}
+
+.secondary-btn {
+    width: 100%;
+    background: transparent;
+    border: 2px solid #1B75BB;
+    color: #1B75BB;
+    padding: 12px;
+    border-radius: 10px;
+    font-weight: 700;
+    cursor: pointer;
+    margin-top: 15px;
+}
+
+@media (max-width: 850px) {
+    .order-grid { grid-template-columns: 1fr; }
+}
+
+/* Quantity Controls */
+.quantity-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.quantity-controls button {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+    background: white;
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.quantity-controls button:hover {
+    border-color: #1B75BB;
+    color: #1B75BB;
+}
+
+.quantity-controls input {
+    width: 50px !important;
+    text-align: center;
+    font-weight: 700;
+    padding: 8px !important;
+}
+
+/* Cart UI Updates */
+.cart-item-info {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.qty-badge {
+    background: #1B75BB;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 800;
+}
+
+.cart-item-price {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    font-weight: 700;
+}
+
+.remove-btn {
+    background: #fdf2f2 !important;
+    color: #ef4444 !important;
+    border: none;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 1;
+}
+
 /* Thank You Page Specifics */
 .thanks-card {
     background: rgba(255, 255, 255, 0.95);
