@@ -75,3 +75,38 @@ function updatePrice() {
         setTimeout(() => { priceDisplay.style.transform = "scale(1)"; }, 200);
     }
 }
+//Redirect to thanks
+const form = document.querySelector(".order-form");
+
+form.addEventListener("submit", async function(event) {
+    event.preventDefault(); // Stop the page from redirecting to Formspree
+    
+    const status = document.querySelector(".submit-btn");
+    const data = new FormData(event.target);
+    
+    status.innerHTML = "Sending...";
+    status.disabled = true;
+
+    fetch(event.target.action, {
+        method: form.method,
+        body: data,
+        headers: {
+            'Accept': 'application/json'
+        }
+    }).then(response => {
+        if (response.ok) {
+            // SUCCESS: Manually go to your thank you page
+            window.location.href = "../pages/thanks.html"; 
+        } else {
+            response.json().then(data => {
+                alert("Error: " + data.errors.map(error => error.message).join(", "));
+                status.innerHTML = "Place Order";
+                status.disabled = false;
+            });
+        }
+    }).catch(error => {
+        alert("Oops! There was a problem submitting your form");
+        status.innerHTML = "Place Order";
+        status.disabled = false;
+    });
+});
