@@ -119,24 +119,7 @@ nav a:hover {
     90%, 97%    { transform: translateX(-83.3333%); } /* Image 11 */
     100%        { transform: translateX(-91.6666%); } /* Slide to the Ghost Image 1, then snap to start */
 }
-/* Responsive Adjustments for Mobile */
-@media (max-width: 768px) {
-    .carousel-container {
-        width: 90vw; /* Wider on mobile for better visibility */
-        top: 40%;    /* Adjust vertical position if needed */
-    }
 
-    /* Adjust the Overlay Text */
-    .content h1 {
-        font-size: 1.5rem; /* Smaller font for small screens */
-        padding: 10px 15px;
-    }
-
-    .content p {
-        font-size: 0.9rem;
-        padding: 0 10px;
-    }
-}
 /* Content Layer */
 .content {
     position: absolute; /* Relative to .carousel-container */
@@ -218,6 +201,25 @@ nav a:hover {
     background-color: rgba(255, 255, 255, 0.9); /* Slight highlight background */
     border-radius: 4px;
     padding: 2px 6px; /* Gives the hover effect some "room" */
+}
+
+/* Responsive Adjustments for Mobile */
+@media (max-width: 768px) {
+    .carousel-container {
+        width: 90vw; /* Wider on mobile for better visibility */
+        top: 40%;    /* Adjust vertical position if needed */
+    }
+
+    /* Adjust the Overlay Text */
+    .content h1 {
+        font-size: 1.5rem; /* Smaller font for small screens */
+        padding: 10px 15px;
+    }
+
+    .content p {
+        font-size: 0.9rem;
+        padding: 0 10px;
+    }
 }
 
 /* About Page Styles */
