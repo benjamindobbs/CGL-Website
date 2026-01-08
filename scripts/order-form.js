@@ -1,8 +1,4 @@
-/**
- * Dynamic Color Selection Logic
- */
-
-
+//Color Selection Logic
 const colorData = {
     "Unisex": {
         "Asphalt": "#4E5452",
@@ -53,6 +49,7 @@ function updateColors() {
 }
 
 
+// Update Current Item Subtotal
 function updateLinePrice() {
     const finish = document.getElementById('finish').value;
     const qty = parseInt(document.getElementById('quantity').value) || 1;
@@ -72,41 +69,8 @@ function updateLinePrice() {
     }
 }
 
-//Redirect to thanks
+// Form Handling
 const form = document.querySelector(".master-order-form");
-
-// form.addEventListener("submit", async function(event) {
-//     event.preventDefault(); // Stop the page from redirecting to Formspree
-    
-//     const status = document.querySelector(".submit-btn");
-//     const data = new FormData(event.target);
-    
-//     status.innerHTML = "Sending...";
-//     status.disabled = true;
-
-//     fetch(event.target.action, {
-//         method: form.method,
-//         body: data,
-//         headers: {
-//             'Accept': 'application/json'
-//         }
-//     }).then(response => {
-//         if (response.ok) {
-//             // SUCCESS: Manually go to your thank you page
-//             window.location.href = "../pages/thanks.html"; 
-//         } else {
-//             response.json().then(data => {
-//                 alert("Error: " + data.errors.map(error => error.message).join(", "));
-//                 status.innerHTML = "Place Order";
-//                 status.disabled = false;
-//             });
-//         }
-//     }).catch(error => {
-//         alert("Oops! There was a problem submitting your form");
-//         status.innerHTML = "Place Order";
-//         status.disabled = false;
-//     });
-// });
 
 let cart = [];
 
@@ -129,16 +93,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // 2. Add the listener for the 'Add to Cart' button
     if (addToCartBtn) {
         addToCartBtn.addEventListener('click', () => {
-            // Call your existing addToCart function
             addToCart();
-            
-            // Optional: Provide visual feedback that the item was added
             provideFeedback(addToCartBtn);
         });
     }
 });
 
-// Optional: Makes the button turn green briefly when clicked
+// Make the button turn green briefly when clicked
 function provideFeedback(button) {
     const originalText = button.innerHTML;
     button.innerHTML = "✓ Added!";
@@ -162,6 +123,7 @@ function changeQty(amount) {
     }
 }
 
+// Cart Update Logic
 function addToCart() {
     const finish = document.getElementById('finish').value;
     const style = document.getElementById('style').value;
@@ -198,6 +160,7 @@ function addToCart() {
 
 }
 
+// Cart update handling
 function renderCart() {
     const cartDisplay = document.getElementById('cart-items-display');
     const grandTotalDisplay = document.getElementById('total-price'); // The final total
@@ -248,7 +211,7 @@ async function submitFinalOrder() {
 
     // 2. Validation: Are name/email filled out?
     if (!form.checkValidity()) {
-        form.reportValidity(); // This shows the browser's built-in "Please fill out this field"
+        form.reportValidity(); 
         return;
     }
 
@@ -269,7 +232,7 @@ async function submitFinalOrder() {
         if (response.ok) {
             // Success! Clear local cart and redirect
             cart = [];
-            window.location.href = "../pages/thanks.html";
+            window.location.href = "../../pages/thanks";
         } else {
             const result = await response.json();
             alert("Error: " + (result.errors ? result.errors[0].message : "Submission failed"));

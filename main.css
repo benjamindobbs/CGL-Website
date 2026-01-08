@@ -23,7 +23,6 @@ header {
 
 .logo img {
     height: 40px;
-    /* Adjust based on your logo */
     display: block;
 }
 
@@ -52,7 +51,6 @@ header {
 /* Navigation Bar */
 nav {
     background-color: #F2F2F2;
-    /* Slightly off-white */
     padding: 0.5rem 5%;
     display: flex;
     gap: 20px;
@@ -88,7 +86,6 @@ nav a:hover {
     display: flex;
     /* width is 100% * number of images */
     width: 1200%; 
-    /* Increased duration to 40s so 10 images aren't flying by too fast */
     animation: scroll 80s infinite cubic-bezier(0.45, 0, 0.55, 1);
     font-size: 0;
 }
@@ -96,27 +93,23 @@ nav a:hover {
 .carousel-track img {
     width: 9.09%; /* 100% divided by 10 images */
     aspect-ratio: 1 / 1;
-    /* 'contain' shows the WHOLE photo with padding if needed */
-    /* 'cover' fills the square but crops the edges */
     object-fit: cover; 
     background-color: #F9F9F9; /* Fills gaps if image isn't perfectly square */
 }
 
-/* The timeline is 100%. We have 11 transitions.
-   Each "stop" is roughly 9% of the timeline.
-*/
+/* 100% / photo count + 1 ; repeat first image on n+1 slide */
 @keyframes scroll {
     0%, 7%      { transform: translateX(0); }
-    9%, 16%     { transform: translateX(-8.3333%); }  /* Image 2 */
-    18%, 25%    { transform: translateX(-16.6666%); } /* Image 3 */
-    27%, 34%    { transform: translateX(-24.9999%); } /* Image 4 */
-    36%, 43%    { transform: translateX(-33.3333%); } /* Image 5 */
-    45%, 52%    { transform: translateX(-41.6666%); } /* Image 6 */
-    54%, 61%    { transform: translateX(-49.9999%); } /* Image 7 */
-    63%, 70%    { transform: translateX(-58.3333%); } /* Image 8 */
-    72%, 79%    { transform: translateX(-66.6666%); } /* Image 9 */
-    81%, 88%    { transform: translateX(-74.9999%); } /* Image 10 */
-    90%, 97%    { transform: translateX(-83.3333%); } /* Image 11 */
+    9%, 16%     { transform: translateX(-8.3333%); }  
+    18%, 25%    { transform: translateX(-16.6666%); } 
+    27%, 34%    { transform: translateX(-24.9999%); } 
+    36%, 43%    { transform: translateX(-33.3333%); } 
+    45%, 52%    { transform: translateX(-41.6666%); } 
+    54%, 61%    { transform: translateX(-49.9999%); } 
+    63%, 70%    { transform: translateX(-58.3333%); } 
+    72%, 79%    { transform: translateX(-66.6666%); } 
+    81%, 88%    { transform: translateX(-74.9999%); } 
+    90%, 97%    { transform: translateX(-83.3333%); } 
     100%        { transform: translateX(-91.6666%); } /* Slide to the Ghost Image 1, then snap to start */
 }
 
@@ -138,7 +131,6 @@ nav a:hover {
     color: white;
     z-index: 5; /* Sits above the images */
     
-    /* Optional: Slight dark tint so text pops regardless of image brightness */
     background: rgba(0, 0, 0, 0.2); 
     pointer-events: none; /* Allows clicks to pass through to images if needed */
 }
@@ -155,11 +147,9 @@ nav a:hover {
     text-align: center;
     
     /* The blue background */
-    background-color: rgba(27, 117, 187, 0.9); /* Your #1B75BB blue */
+    background-color: rgba(27, 117, 187, 0.9); 
     color: white;
     
-    /* Padding provides the "box" around the text */
-    /* Adjust these numbers to change the box size */
     padding: 20px 40px; 
     
     /* Visual styling */
@@ -180,11 +170,9 @@ nav a:hover {
 
 /* Styling the link in the subtext */
 .content p a {
-    /* 1. Reset defaults */
     color: #FFFFFF; /* Match the paragraph text color */
     text-decoration: none; /* Remove the underline */
     
-    /* 2. Modernize */
     font-weight: 600;
     border-bottom: 1px solid rgba(255, 255, 255, 0.3); /* Subtle "indicator" line */
     transition: all 0.3s ease; /* Smooth color fade */
@@ -196,11 +184,11 @@ nav a:hover {
 
 /* Hover State */
 .content p a:hover {
-    color: #1B75BB; /* Changes to your brand blue */
+    color: #1B75BB; 
     border-bottom-color: #1B75BB; /* Line changes color too */
     background-color: rgba(255, 255, 255, 0.9); /* Slight highlight background */
     border-radius: 4px;
-    padding: 2px 6px; /* Gives the hover effect some "room" */
+    padding: 2px 6px; 
 }
 
 /* Responsive Adjustments for Mobile */
@@ -329,7 +317,7 @@ nav a:hover {
 /* Progress Section with Timeline Line */
 .timeline-layout {
     display: grid;
-    /* Force 5 columns */
+    /* Force n columns */
     grid-template-columns: repeat(5, 1fr); 
     gap: 10px;
     position: relative;
@@ -340,7 +328,7 @@ nav a:hover {
 .timeline-layout::before {
     content: '';
     position: absolute;
-    top: 130px; /* Aligns with the middle of your 180px circles */
+    top: 130px; /* Aligns with the middle of 180px circles */
     left: 10%;
     right: 10%;
     height: 4px;
@@ -349,7 +337,7 @@ nav a:hover {
 }
 
 .milestone-card {
-    background: transparent; /* Changed to transparent for a sleeker timeline look */
+    background: transparent; 
     box-shadow: none;
     position: relative;
     z-index: 1;
@@ -362,7 +350,7 @@ nav a:hover {
     margin: 0 auto 20px;
     border-radius: 50%;
     overflow: hidden;
-    border: 6px solid #F9F9F9; /* Thick border to "cut" the line */
+    border: 6px solid #F9F9F9; 
     background-color: white;
     box-shadow: 0 4px 15px rgba(0,0,0,0.1);
     transition: all 0.3s ease;
@@ -403,7 +391,7 @@ nav a:hover {
 
 /* Modern Layout Base */
 .form-page {
-    background-color: #F9F9F9; /* Your off-white */
+    background-color: #F9F9F9; 
     background-image: radial-gradient(circle at 10% 20%, rgba(27, 117, 187, 0.05) 0%, transparent 40%);
     min-height: 100vh;
 }
@@ -757,7 +745,6 @@ nav a:hover {
     width: 100%;
     max-width: 500px;
     
-    /* ADD THESE THREE LINES: */
     display: flex;
     flex-direction: column;
     align-items: center; 
