@@ -232,7 +232,7 @@ async function submitFinalOrder() {
         if (response.ok) {
             // Success! Clear local cart and redirect
             cart = [];
-            window.location.href = "../../pages/thanks";
+            window.location.href = "../../thanks";
         } else {
             const result = await response.json();
             alert("Error: " + (result.errors ? result.errors[0].message : "Submission failed"));
