@@ -2,14 +2,12 @@
 const colorData = {
     "Unisex": {
         "Asphalt": "#4E5452",
-        "Lavender": "#E6E6FA",
         "Blush": "#FEC5E5",
         "Bone": "#E3DAC9",
         "Artic": "#89ccd4ff"
     },
     "Womens": {
         "Black": "#000000",
-        "Lavender": "#E6E6FA",
         "Blush": "#FEC5E5",
         "Bone": "#E3DAC9",
         "Artic": "#89ccd4ff"
