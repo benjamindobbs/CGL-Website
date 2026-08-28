@@ -4,13 +4,13 @@ const colorData = {
         "Asphalt": "#4E5452",
         "Blush": "#FEC5E5",
         "Bone": "#E3DAC9",
-        "Artic": "#89ccd4ff"
+        "Arctic": "#89CCD4"
     },
     "Womens": {
         "Black": "#000000",
         "Blush": "#FEC5E5",
         "Bone": "#E3DAC9",
-        "Artic": "#89ccd4ff"
+        "Arctic": "#89CCD4"
     }
 };
 
@@ -68,31 +68,18 @@ function updateLinePrice() {
 }
 
 // Form Handling
-const form = document.querySelector(".master-order-form");
-
 let cart = [];
 
 // 1. Wait for the DOM to be fully loaded
 document.addEventListener('DOMContentLoaded', () => {
-    const finishSelect = document.getElementById('finish');
-    const qtyInput = document.getElementById('quantity');
-    const qtyBtns = document.querySelectorAll('.quantity-controls button');
-
-    // Update price when dropdown changes
-    finishSelect.addEventListener('change', updateLinePrice);
-
-    // Update price when +/- buttons are clicked
-    qtyBtns.forEach(btn => {
-        btn.addEventListener('click', updateLinePrice);
-    });
-    
     const addToCartBtn = document.getElementById('add-to-cart-btn');
 
     // 2. Add the listener for the 'Add to Cart' button
     if (addToCartBtn) {
         addToCartBtn.addEventListener('click', () => {
-            addToCart();
-            provideFeedback(addToCartBtn);
+            if (addToCart()) {
+                provideFeedback(addToCartBtn);
+            }
         });
     }
 });
@@ -119,6 +106,7 @@ function changeQty(amount) {
     if (newVal >= 1 && newVal <= 99) {
         qtyInput.value = newVal;
     }
+    updateLinePrice();
 }
 
 // Cart Update Logic
@@ -135,7 +123,7 @@ function addToCart() {
 
     if (!finish || !style || !size || !color) {
         alert("Please complete all selections first.");
-        return;
+        return false;
     }
 
     // Add object with quantity and line total to array
@@ -156,6 +144,7 @@ function addToCart() {
     document.getElementById('line-item-total').innerText = "$0";
     renderCart();
 
+    return true;
 }
 
 // Cart update handling
@@ -230,16 +219,16 @@ async function submitFinalOrder() {
         if (response.ok) {
             // Success! Clear local cart and redirect
             cart = [];
-            window.location.href = "../../thanks";
+            window.location.href = "/thanks/";
         } else {
             const result = await response.json();
             alert("Error: " + (result.errors ? result.errors[0].message : "Submission failed"));
-            submitBtn.innerHTML = "Submit Full Order";
+            submitBtn.innerHTML = "Place Order";
             submitBtn.disabled = false;
         }
     } catch (error) {
         alert("Oops! There was a connection problem.");
-        submitBtn.innerHTML = "Submit Full Order";
+        submitBtn.innerHTML = "Place Order";
         submitBtn.disabled = false;
     }
 }
