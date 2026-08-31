@@ -11,6 +11,12 @@ html {
 
 
 
+/* Keep the nav/header above the fixed carousel */
+.nav-container {
+    position: relative;
+    z-index: 10;
+}
+
 /* Header Styles */
 header {
     background-color: rgba(255, 255, 255, 0.9);
@@ -68,6 +74,12 @@ nav a:hover {
     color: #1B75BB;
 }
 
+nav a[aria-current="page"] {
+    color: #1B75BB;
+    font-weight: 700;
+    border-bottom: 2px solid #1B75BB;
+}
+
 
 /* Carousel Container */
 .carousel-container {
@@ -75,7 +87,9 @@ nav a:hover {
     top: 55%;
     left: 50%;
     transform: translate(-50%, -50%);
-    width: 40vw;
+    /* Constrain by height as well as width so the square never grows
+       tall enough to ride up under the nav bar */
+    width: min(40vw, 60vh);
     aspect-ratio: 1 / 1;
     z-index: 2;
     overflow: hidden;
@@ -84,16 +98,16 @@ nav a:hover {
 }
 .carousel-track {
     display: flex;
-    /* width is 100% * number of images */
-    width: 1200%; 
+    /* width is 100% * number of images (11 + 1 ghost) */
+    width: 1200%;
     animation: scroll 80s infinite cubic-bezier(0.45, 0, 0.55, 1);
     font-size: 0;
 }
 
 .carousel-track img {
-    width: 9.09%; /* 100% divided by 10 images */
+    width: 8.3333%; /* 100% / 12 slides — must match the keyframe step */
     aspect-ratio: 1 / 1;
-    object-fit: cover; 
+    object-fit: cover;
     background-color: #F9F9F9; /* Fills gaps if image isn't perfectly square */
 }
 
@@ -194,7 +208,7 @@ nav a:hover {
 /* Responsive Adjustments for Mobile */
 @media (max-width: 768px) {
     .carousel-container {
-        width: 90vw; /* Wider on mobile for better visibility */
+        width: min(90vw, 55vh); /* Wider on mobile, still height-capped */
         top: 40%;    /* Adjust vertical position if needed */
     }
 
@@ -587,10 +601,6 @@ nav a:hover {
     color: #999;
     font-style: italic;
     grid-column: 1 / -1;
-}
-/* Ensure the hidden price input doesn't take up space */
-#hidden-price {
-    display: none;
 }
 
 .line-item-preview {

@@ -227,7 +227,7 @@ async function submitFinalOrder() {
 
         if (res.ok) {
             cart = [];
-            window.location.href = '../thanks';
+            window.location.href = '/thanks/';
         } else {
             const result = await res.json();
             statusEl.innerText = 'Error: ' + (result.error || 'Submission failed');

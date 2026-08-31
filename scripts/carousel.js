@@ -1,30 +1,26 @@
 const photos = [
-    { src: "assets/carousel/carousel-01.JPG", caption: 'Place Holder' },
-    { src: 'assets/carousel/carousel-02.JPG', caption: 'Place Holder' },
-    { src: 'assets/carousel/carousel-03.JPG', caption: 'Place Holder' },
-    { src: 'assets/carousel/carousel-04.JPG', caption: 'Place Holder' },
-    { src: "assets/carousel/carousel-05.JPG", caption: 'Place Holder' },
-    { src: 'assets/carousel/carousel-06.JPG', caption: 'Place Holder' },
-    { src: 'assets/carousel/carousel-07.JPG', caption: 'Place Holder' },
-    { src: 'assets/carousel/carousel-08.JPG', caption: 'Place Holder' },
-    { src: 'assets/carousel/carousel-09.JPG', caption: 'Place Holder' },
-    { src: 'assets/carousel/carousel-10.JPG', caption: 'Place Holder' },
-    { src: 'assets/carousel/carousel-11.JPG', caption: 'Place Holder' },
-    { src: "assets/carousel/carousel-01.JPG", caption: 'Place Holder' }
-
+    "/assets/carousel/carousel-01.JPG",
+    "/assets/carousel/carousel-02.JPG",
+    "/assets/carousel/carousel-03.JPG",
+    "/assets/carousel/carousel-04.JPG",
+    "/assets/carousel/carousel-05.JPG",
+    "/assets/carousel/carousel-06.JPG",
+    "/assets/carousel/carousel-07.JPG",
+    "/assets/carousel/carousel-08.JPG",
+    "/assets/carousel/carousel-09.JPG",
+    "/assets/carousel/carousel-10.JPG",
+    "/assets/carousel/carousel-11.JPG",
+    "/assets/carousel/carousel-01.JPG" // Ghost of image 1 for a seamless loop
 ];
 
 document.addEventListener('DOMContentLoaded', () => {
-    const grid = document.getElementById('carousel-track');
+    const track = document.getElementById('carousel-track');
 
-    photos.forEach((photo) => {
-        const card = document.createElement('img');
-        card.className = 'carousel-track';
-        
-
-        card.src= photo.src;
-        card.alt= photo.caption;
-
-        grid.appendChild(card);
+    photos.forEach((src) => {
+        const slide = document.createElement('img');
+        slide.className = 'carousel-slide';
+        slide.src = src;
+        slide.alt = '';
+        track.appendChild(slide);
     });
 });
