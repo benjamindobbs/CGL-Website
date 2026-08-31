@@ -1,0 +1,92 @@
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Restock</title>
+
+    <link rel="icon" type="image/x-icon" href="./../../assets/favicon.ico">
+    <link rel="stylesheet" href="./../../main.css">
+    <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+</head>
+
+<body class="form-page">
+    <div class="nav-container">
+        <header>
+            <div class="logo">
+                <img src="./../../assets/CGL-Logo.svg" alt="Classical Graphics Lab">
+            </div>
+        </header>
+        <nav class="navbar">
+            <a href="./../" class="nav-tab">Staff Tools</a>
+        </nav>
+    </div>
+
+    <main class="form-container">
+        <p id="loading-status" class="placeholder-text">Checking sign-in&hellip;</p>
+
+        <div class="order-form" id="staff-ui" style="display:none;">
+            <h2>Restock</h2>
+            <p>Scan (or type) an item's UUID, enter the quantity received, and add it to stock.</p>
+
+            <div class="form-group">
+                <label for="uuid">Item UUID</label>
+                <input type="text" id="uuid" placeholder="Scan barcode or type UUID" autofocus>
+            </div>
+
+            <div class="form-group">
+                <label for="qty">Quantity to Add</label>
+                <input type="number" id="qty" value="1" min="1">
+            </div>
+
+            <p id="result" style="display:none;font-weight:600;"></p>
+
+            <button type="button" id="restock-btn" class="submit-btn">
+                <span class="material-symbols-outlined">add_box</span>
+                Add Stock
+            </button>
+        </div>
+    </main>
+
+    <script src="https://accounts.google.com/gsi/client" async defer onload="gisLoaded()"></script>
+    <script src="./../../scripts/auth.js"></script>
+    <script src="./../../scripts/staff-guard.js"></script>
+    <script>
+        requireStaffSession(() => {
+            const uuidInput = document.getElementById('uuid');
+            const qtyInput = document.getElementById('qty');
+            const resultEl = document.getElementById('result');
+
+            async function submitRestock() {
+                const uuid = uuidInput.value.trim();
+                const qty = parseInt(qtyInput.value);
+                resultEl.style.display = 'none';
+
+                if (!uuid) { uuidInput.focus(); return; }
+                if (!Number.isInteger(qty) || qty <= 0) { qtyInput.focus(); return; }
+
+                const res = await authFetch('/api/inventory/restock', {
+                    method: 'POST',
+                    body: JSON.stringify({ uuid, qty }),
+                });
+                const data = await res.json();
+
+                resultEl.style.display = '';
+                if (res.ok) {
+                    resultEl.style.color = '#27ae60';
+                    resultEl.innerText = `${data.name} (${[data.variant_color, data.variant_size].filter(Boolean).join(' / ')}) is now at ${data.stock_qty} in stock.`;
+                    uuidInput.value = '';
+                    qtyInput.value = 1;
+                } else {
+                    resultEl.style.color = '#c0392b';
+                    resultEl.innerText = data.error || 'Restock failed.';
+                }
+                uuidInput.focus();
+            }
+
+            document.getElementById('restock-btn').addEventListener('click', submitRestock);
+            uuidInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); qtyInput.focus(); } });
+            qtyInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); submitRestock(); } });
+        });
+    </script>
+</body>

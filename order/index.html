@@ -31,49 +31,37 @@
             <a href="./../order" class="nav-tab">Quick Order</a>
         </nav>
     </div>
+
     <main class="form-container">
-        <div class="order-grid">
+        <p id="loading-status" class="placeholder-text">Checking sign-in&hellip;</p>
+
+        <div class="order-grid" id="order-ui" style="display:none;">
 
             <section class="config-card">
                 <h2>1. Configure Item</h2>
 
-
                 <div class="form-group">
-                    <label for="style">Style</label>
-                    <select id="style" required onchange="updateColors()">
-                        <option value="" disabled selected>Select Style</option>
-                        <option value="Unisex">Unisex Hoodie</option>
-                        <option value="Womens">Womens Crew</option>
+                    <label for="product">Uniform Item</label>
+                    <select id="product" required>
+                        <option value="" disabled selected>Select Item</option>
                     </select>
                 </div>
 
-                <div class="form-group">
-                    <label for="size">Size</label>
-                    <select id="size">
-                        <option value="S">Small</option>
-                        <option value="M">Medium</option>
-                        <option value="L">Large</option>
-                        <option value="XL">Extra Large</option>
-                        <option value="2XL">2 Extra Large</option>
-                        <option value="3XL">3 Extra Large</option>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label for="finish">Print Finish</label>
-                    <select id="finish" required onchange="updateLinePrice()">
-                        <option value="" disabled selected>Select Finish</option>
-                        <option value="Raised Print">Raised Print</option>
-                        <option value="Embossed Embroidery">Embossed Embroidery</option>
-                    </select>
-                </div>
+                <p id="product-detail" class="placeholder-text" style="display:none;"></p>
 
                 <div class="form-group">
                     <label>Color</label>
                     <div id="color-swatch-container" class="swatch-grid">
-                        <p class="placeholder-text">Please select a style first...</p>
+                        <p class="placeholder-text">Please select an item first...</p>
                     </div>
                     <input type="hidden" id="selected-color">
+                </div>
+
+                <div class="form-group" id="size-group" style="display:none;">
+                    <label for="size">Size</label>
+                    <select id="size">
+                        <option value="" disabled selected>Select Size</option>
+                    </select>
                 </div>
 
                 <div class="form-group">
@@ -97,7 +85,7 @@
             <section class="cart-card">
                 <h2>2. Your Cart</h2>
 
-                <form action="https://formspree.io/f/xojvgvjz" method="POST" id="master-order-form">
+                <form id="master-order-form">
 
                     <div id="cart-items-display">
                         <p class="placeholder-text">Your cart is empty.</p>
@@ -128,7 +116,7 @@
                         <input type="text" name="student_id" id="student_id">
                     </div>
 
-                    <input type="hidden" name="full_order_details" id="hidden-cart-data">
+                    <p id="order-status" style="display:none;color:#c0392b;font-weight:600;"></p>
 
                     <button type="button" id="submit-order-btn" class="submit-btn" onclick="submitFinalOrder()">
                         Place Order
@@ -139,5 +127,7 @@
         </div>
     </main>
 
+    <script src="https://accounts.google.com/gsi/client" async defer onload="gisLoaded()"></script>
+    <script src="./../scripts/auth.js"></script>
     <script src="./../scripts/order-form.js"></script>
 </body>

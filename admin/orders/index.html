@@ -1,0 +1,111 @@
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Orders</title>
+
+    <link rel="icon" type="image/x-icon" href="./../../assets/favicon.ico">
+    <link rel="stylesheet" href="./../../main.css">
+    <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+</head>
+
+<body class="form-page">
+    <div class="nav-container">
+        <header>
+            <div class="logo">
+                <img src="./../../assets/CGL-Logo.svg" alt="Classical Graphics Lab">
+            </div>
+        </header>
+        <nav class="navbar">
+            <a href="./../" class="nav-tab">Staff Tools</a>
+        </nav>
+    </div>
+
+    <main class="staff-container">
+        <p id="loading-status" class="placeholder-text">Checking sign-in&hellip;</p>
+
+        <div id="staff-ui" style="display:none;">
+            <h1>Orders</h1>
+
+            <div class="form-group" style="max-width:250px;">
+                <label for="status-filter">Filter by Status</label>
+                <select id="status-filter">
+                    <option value="">All</option>
+                    <option value="new">New</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="fulfilled">Fulfilled</option>
+                    <option value="cancelled">Cancelled</option>
+                </select>
+            </div>
+
+            <div style="overflow-x:auto;">
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>Placed</th>
+                            <th>Customer</th>
+                            <th>Student ID</th>
+                            <th>Items</th>
+                            <th>Total</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="orders-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <script src="https://accounts.google.com/gsi/client" async defer onload="gisLoaded()"></script>
+    <script src="./../../scripts/auth.js"></script>
+    <script src="./../../scripts/staff-guard.js"></script>
+    <script>
+        requireStaffSession(() => {
+            const STATUSES = ['new', 'in_progress', 'fulfilled', 'cancelled'];
+
+            async function updateStatus(orderId, status) {
+                await authFetch(`/api/orders/${orderId}`, {
+                    method: 'PATCH',
+                    body: JSON.stringify({ status }),
+                });
+                loadOrders();
+            }
+            window.updateStatus = updateStatus;
+
+            async function loadOrders() {
+                const filter = document.getElementById('status-filter').value;
+                const res = await authFetch(`/api/orders${filter ? `?status=${filter}` : ''}`);
+                const orders = await res.json();
+                const tbody = document.getElementById('orders-tbody');
+
+                tbody.innerHTML = orders.map((order) => {
+                    const itemsSummary = order.items.map((i) =>
+                        `${i.qty}x ${i.item_name} (${[i.variant_color, i.variant_size].filter(Boolean).join('/')})`
+                    ).join('<br>');
+                    const statusOptions = STATUSES.map((s) =>
+                        `<option value="${s}" ${s === order.status ? 'selected' : ''}>${s.replace('_', ' ')}</option>`
+                    ).join('');
+
+                    return `
+                        <tr>
+                            <td>${new Date(order.created_at).toLocaleString()}</td>
+                            <td>${order.customer_name}<br><small>${order.email}</small></td>
+                            <td>${order.student_id || '—'}</td>
+                            <td>${itemsSummary}</td>
+                            <td>$${(order.total_cents / 100).toFixed(2)}</td>
+                            <td>
+                                <select onchange="updateStatus(${order.id}, this.value)">
+                                    ${statusOptions}
+                                </select>
+                            </td>
+                        </tr>
+                    `;
+                }).join('') || '<tr><td colspan="6" class="placeholder-text">No orders yet.</td></tr>';
+            }
+
+            document.getElementById('status-filter').addEventListener('change', loadOrders);
+            loadOrders();
+        });
+    </script>
+</body>

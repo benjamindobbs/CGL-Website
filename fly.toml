@@ -1,0 +1,38 @@
+# fly.toml app configuration file for cgl-website
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+# Managing the staff whitelist (who can use /admin/*) after deploy, without a
+# redeploy — run from a machine with flyctl authenticated against this app:
+#   fly ssh console -a cgl-website -C "node server/manage-staff.js add someone@hartfordschools.org"
+#   fly ssh console -a cgl-website -C "node server/manage-staff.js add someone@students.hartfordschools.org"
+#   fly ssh console -a cgl-website -C "node server/manage-staff.js remove someone@hartfordschools.org"
+#   fly ssh console -a cgl-website -C "node server/manage-staff.js list"
+# (fly ssh console starts a machine if none is running, since
+# min_machines_running = 0 below lets it fully scale to zero when idle.)
+
+app = 'cgl-website'
+primary_region = 'ams'
+
+[build]
+
+[env]
+  DB_PATH = '/data/cgl.db'
+  PORT = '8080'
+
+[[mounts]]
+  source = 'cgl_data'
+  destination = '/data'
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  min_machines_running = 0
+
+[[vm]]
+  memory = '256mb'
+  cpu_kind = 'shared'
+  cpus = 1
+  memory_mb = 256

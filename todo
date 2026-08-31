@@ -1,0 +1,30 @@
+Inventory Management Tool:
+Create item catalog
+- Each item has a unique identifier
+- User can manually add new items with name and UUID (automatically generated or manual entry) set a starting stock amount
+- Restock portal page allows scanning a barcode (text entry field) where user provided UUID and a quanity to add to the stock
+- Storefront portal page that allows scanning a barcode (text entry field) where user provides UUDID and (default 1 with manual count override field plus ticker) and amount is removed from Inventory
+
+Create order page:
+- starting without payment handling, but this will eventually need to be added
+- current order page is for a single collection pre-order, this will need to supercede the existing page
+- will need a supporting catalog page to select items and add to cart (similar to current setup, but with the ability to add new items as they become available)
+- new items to add will be in a single category as Uniforms
+- Sub items in this would be as follows:
+1. Embroidery Only (Polo Provided) with 2 color options (White/Black) price - Free; detail section: You provide the polo and we embroidery the school logo for free! Just drop off your polo at the school store in the morning between 7:00-7:30 and we will bring it to your advisor when we're done. 
+2. Transfer Only (Tee-Shirt Provided) with 2 color options (White/Black) price - Free detail section: You provide the tee and we apply our logo for free! Just drop off your tee at the school store in the morning between 7:00-7:30 and we will bring it to your advisor when we're done. 
+3. Polo + Embroidery with 2 color options (White/Black) with size options (S-5XL) and a price of $15; detail section: We buy you the polo at our bulk rate and embroider it for free (52/48 Cotton/Poly mix Gildan G880 Black/White Polo)
+4. Tee-shirt + Transfer with 2 color options (White/Black) with size options (S-5XL) and a price of $5;detail section: We buy you the tee-shirt at our bulk rate and apply our logo to it for free (100% Cotton Gildan G500 Black/White Tee)
+-Convert existing order page content to follow the new schema above
+
+Surrounding infastructor:
+Sign-in portal
+Re-use OAuth code from C:\Users\benja\Documents\GitHub\ClassicalKenKen
+Require a hartfordschools or students.hartfordschools email to login
+whitelist of emails to see the catalog pages
+require signin to see the order pages
+
+Additional information:
+DB should be built using SQLite
+Project to be hosted using Fly.io project cgl-website
+flyctl should be authentiated on this device

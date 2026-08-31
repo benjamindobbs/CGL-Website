@@ -1,0 +1,67 @@
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Staff Tools</title>
+
+    <link rel="icon" type="image/x-icon" href="./../assets/favicon.ico">
+    <link rel="stylesheet" href="./../main.css">
+    <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+</head>
+
+<body class="form-page">
+    <div class="nav-container">
+        <header>
+            <div class="logo">
+                <img src="./../assets/CGL-Logo.svg" alt="Classical Graphics Lab">
+            </div>
+            <div class="contact-buttons">
+                <a href="mailto:inquiry@madein.school" class="btn">
+                    <span class="material-symbols-outlined">mail</span> Email
+                </a>
+                <a href="tel:18605132398" class="btn">
+                    <span class="material-symbols-outlined">call</span> Call
+                </a>
+            </div>
+        </header>
+        <nav class="navbar">
+            <a href="./../" class="nav-tab">Home</a>
+            <a href="./../info" class="nav-tab">Information</a>
+            <a href="./../order" class="nav-tab">Quick Order</a>
+        </nav>
+    </div>
+
+    <main class="staff-container">
+        <p id="loading-status" class="placeholder-text">Checking sign-in&hellip;</p>
+
+        <div id="staff-ui" style="display:none;">
+            <h1>Staff Tools</h1>
+            <div class="staff-grid">
+                <a class="staff-tool-card" href="./orders/">
+                    <h3>Orders</h3>
+                    <p>Review and update the status of Uniforms orders placed online.</p>
+                </a>
+                <a class="staff-tool-card" href="./items/">
+                    <h3>Item Catalog</h3>
+                    <p>Add new store items and set their starting stock.</p>
+                </a>
+                <a class="staff-tool-card" href="./restock/">
+                    <h3>Restock</h3>
+                    <p>Scan or enter an item UUID to add stock.</p>
+                </a>
+                <a class="staff-tool-card" href="./storefront/">
+                    <h3>Storefront Sale</h3>
+                    <p>Scan or enter an item UUID to remove stock sold at the counter.</p>
+                </a>
+            </div>
+        </div>
+    </main>
+
+    <script src="https://accounts.google.com/gsi/client" async defer onload="gisLoaded()"></script>
+    <script src="./../scripts/auth.js"></script>
+    <script src="./../scripts/staff-guard.js"></script>
+    <script>
+        requireStaffSession(() => {});
+    </script>
+</body>
