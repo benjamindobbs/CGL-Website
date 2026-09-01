@@ -80,6 +80,16 @@ nav a[aria-current="page"] {
     border-bottom: 2px solid #1B75BB;
 }
 
+/* Staff-only tabs stay hidden until scripts/nav-auth.js reveals them for an
+   authenticated staff session. */
+nav a.staff-only[hidden] {
+    display: none;
+}
+
+nav a.staff-only {
+    color: #1B75BB;
+}
+
 
 /* Carousel Container */
 .carousel-container {

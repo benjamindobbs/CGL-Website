@@ -34,6 +34,9 @@ function gisLoaded() {
         gisLoaded();
         return;
     }
+    // Pages that only read session state (to show nav links, etc.) include this
+    // file without the GIS script — nothing to wait for in that case.
+    if (!document.querySelector('script[src*="accounts.google.com/gsi/client"]')) return;
     setTimeout(waitForGis, 100);
 })();
 

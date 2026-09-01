@@ -21,7 +21,14 @@
             </div>
         </header>
         <nav class="navbar">
-            <a href="/admin/" class="nav-tab">Staff Tools</a>
+            <a href="/" class="nav-tab">Home</a>
+            <a href="/info/" class="nav-tab">Information</a>
+            <a href="/order/" class="nav-tab">Quick Order</a>
+            <a href="/admin/" class="nav-tab staff-only" hidden>Staff Tools</a>
+            <a href="/admin/orders/" class="nav-tab staff-only" hidden>Orders</a>
+            <a href="/admin/items/" class="nav-tab staff-only" hidden>Item Catalog</a>
+            <a href="/admin/restock/" class="nav-tab staff-only" hidden>Restock</a>
+            <a href="/admin/storefront/" class="nav-tab staff-only" hidden>Storefront</a>
         </nav>
     </div>
 
@@ -103,6 +110,7 @@
             uuidInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); submitSale(); } });
         });
     </script>
+    <script src="/scripts/nav-auth.js"></script>
 </body>
 
 </html>
