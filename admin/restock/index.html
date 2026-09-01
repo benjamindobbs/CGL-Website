@@ -41,7 +41,13 @@
 
             <div class="form-group">
                 <label for="uuid">Item UUID</label>
-                <input type="text" id="uuid" placeholder="Scan barcode or type UUID" autofocus>
+                <div class="input-with-action">
+                    <input type="text" id="uuid" placeholder="Scan QR or type UUID" autofocus>
+                    <button type="button" id="scan-btn" class="secondary-btn scan-btn">
+                        <span class="material-symbols-outlined">qr_code_scanner</span>
+                        Scan
+                    </button>
+                </div>
             </div>
 
             <div class="form-group">
@@ -61,11 +67,26 @@
     <script src="https://accounts.google.com/gsi/client" async defer onload="gisLoaded()"></script>
     <script src="/scripts/auth.js"></script>
     <script src="/scripts/staff-guard.js"></script>
+    <script src="/scripts/vendor/jsQR.min.js"></script>
+    <script src="/scripts/qr-scan.js"></script>
     <script>
         requireStaffSession(() => {
             const uuidInput = document.getElementById('uuid');
             const qtyInput = document.getElementById('qty');
             const resultEl = document.getElementById('result');
+
+            document.getElementById('scan-btn').addEventListener('click', () => {
+                resultEl.style.display = 'none';
+                scanQr().then((text) => {
+                    uuidInput.value = text;
+                    qtyInput.focus();
+                }).catch((err) => {
+                    if (err.reason === 'cancel') return;
+                    resultEl.style.display = '';
+                    resultEl.style.color = '#c0392b';
+                    resultEl.innerText = err.message || 'Could not scan.';
+                });
+            });
 
             async function submitRestock() {
                 const uuid = uuidInput.value.trim();

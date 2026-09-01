@@ -1096,3 +1096,227 @@ nav a.staff-only {
     50% { transform: scale(1.1); opacity: 0.8; }
     100% { transform: scale(1); opacity: 1; }
 }
+
+/* QR Label Sheets (/admin/labels/) */
+.labels-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 20px;
+    flex-wrap: wrap;
+    margin-bottom: 24px;
+}
+
+.labels-actions {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.labels-actions .submit-btn {
+    width: auto;
+    margin-top: 0;
+}
+
+.sheet {
+    background: #fff;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+    border-radius: 4px;
+    width: 100%;
+    max-width: 8.5in;
+    margin: 0 auto 24px;
+    padding: 0.4in;
+    box-sizing: border-box;
+}
+
+.sheet-header {
+    display: flex;
+    justify-content: space-between;
+    font-weight: 700;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #444;
+    border-bottom: 2px solid #222;
+    padding-bottom: 6px;
+    margin-bottom: 14px;
+}
+
+.label-grid {
+    display: grid;
+    grid-template-columns: repeat(var(--cols, 4), 1fr);
+    gap: 10px;
+}
+
+.label-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 8px 6px;
+    break-inside: avoid;
+}
+
+.label-qr {
+    width: 100%;
+    max-width: 1.1in;
+}
+
+.label-qr svg {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
+.label-name {
+    font-weight: 700;
+    font-size: 0.8rem;
+    line-height: 1.2;
+    margin-top: 6px;
+}
+
+.label-variant {
+    font-size: 0.72rem;
+    color: #555;
+    line-height: 1.2;
+}
+
+.label-uuid {
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size: 0.58rem;
+    color: #888;
+    line-height: 1.15;
+    margin-top: 4px;
+    word-break: break-all;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* UUID field + inline Scan button (Restock / Storefront) */
+.input-with-action {
+    display: flex;
+    gap: 10px;
+}
+
+.input-with-action input {
+    flex: 1;
+    min-width: 0;
+}
+
+.scan-btn.secondary-btn {
+    width: auto;
+    flex: none;
+    margin-top: 0;
+    padding: 0 16px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+}
+
+/* Camera QR scanner overlay (scripts/qr-scan.js) */
+.qr-scan-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    background: rgba(0, 0, 0, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.qr-scan-box {
+    width: 100%;
+    max-width: 420px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+}
+
+.qr-scan-frame {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+}
+
+.qr-scan-video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 16px;
+    background: #000;
+}
+
+.qr-scan-reticle {
+    position: absolute;
+    inset: 16%;
+    border: 3px solid rgba(255, 255, 255, 0.9);
+    border-radius: 12px;
+    pointer-events: none;
+}
+
+.qr-scan-hint {
+    margin: 0;
+    color: #fff;
+    font-weight: 600;
+    text-align: center;
+}
+
+.qr-scan-cancel.secondary-btn {
+    width: auto;
+    margin-top: 0;
+    background: #fff;
+}
+
+@media print {
+    @page { size: letter portrait; margin: 0.4in; }
+
+    .nav-container,
+    .labels-controls,
+    #loading-status {
+        display: none !important;
+    }
+
+    body.form-page {
+        background: #fff !important;
+        background-image: none !important;
+    }
+
+    .staff-container {
+        max-width: none;
+        margin: 0;
+        padding: 0;
+    }
+
+    .sheet {
+        box-shadow: none;
+        border-radius: 0;
+        width: auto;
+        max-width: none;
+        margin: 0;
+        padding: 0;
+        page-break-after: always;
+        break-after: page;
+    }
+
+    #sheets .sheet:last-child {
+        page-break-after: auto;
+        break-after: auto;
+    }
+
+    .label-cell {
+        page-break-inside: avoid;
+    }
+
+    * {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+}
