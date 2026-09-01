@@ -471,9 +471,10 @@ nav a.staff-only {
     letter-spacing: 0.5px;
 }
 
-.form-group select, 
+.form-group select,
 .form-group input {
     width: 100%;
+    box-sizing: border-box;
     padding: 14px 18px;
     background-color: #FFFFFF;
     border: 2px solid #EEE;
@@ -511,6 +512,7 @@ nav a.staff-only {
 /* Modern Button with Gradient Hover */
 .submit-btn {
     width: 100%;
+    box-sizing: border-box;
     background: #1B75BB;
     color: white;
     padding: 18px;
@@ -677,6 +679,7 @@ nav a.staff-only {
 
 .secondary-btn {
     width: 100%;
+    box-sizing: border-box;
     background: transparent;
     border: 2px solid #1B75BB;
     color: #1B75BB;
