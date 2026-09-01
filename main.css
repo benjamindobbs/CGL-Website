@@ -59,7 +59,8 @@ nav {
     background-color: #F2F2F2;
     padding: 0.5rem 5%;
     display: flex;
-    gap: 20px;
+    flex-wrap: wrap;
+    gap: 4px 20px;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }
 
@@ -1630,4 +1631,141 @@ nav a.staff-only {
     margin-top: 0;
     padding: 12px 20px;
     font-size: 1rem;
+}
+
+/* ===================================================================== */
+/* Mobile / small-screen adjustments for the staff admin tools.          */
+/* Scoped to `screen` so the QR-label print layout is left alone.        */
+/* ===================================================================== */
+@media screen and (max-width: 768px) {
+    header {
+        flex-wrap: wrap;
+        gap: 10px;
+        padding: 0.75rem 5%;
+    }
+
+    nav {
+        gap: 2px 14px;
+        padding: 0.5rem 4%;
+    }
+
+    nav a {
+        padding: 6px 4px;
+    }
+
+    .staff-container {
+        padding: 28px 14px;
+    }
+
+    .config-card {
+        padding: 20px;
+    }
+
+    /* Filter bars (Item Catalog, Transaction Log) stack to one column and
+       their buttons go full-width for easier tapping. */
+    .catalog-filters,
+    .txn-filters {
+        gap: 12px;
+    }
+
+    .catalog-filters .form-group,
+    .txn-filters .form-group,
+    .catalog-bulk {
+        flex: 1 1 100%;
+        min-width: 0;
+    }
+
+    .catalog-bulk-actions,
+    .txn-filter-actions {
+        width: 100%;
+    }
+
+    .catalog-bulk-actions .secondary-btn,
+    .txn-filter-actions .secondary-btn,
+    .txn-filter-actions .submit-btn {
+        flex: 1 1 100%;
+        justify-content: center;
+    }
+
+    /* Inline item editor: single column, full-width action buttons. Capped at
+       ~viewport width so the fields don't stretch to the (wide, scrollable)
+       table and force a second horizontal scroll to reach them. */
+    .row-editor {
+        grid-template-columns: 1fr;
+        gap: 12px;
+        padding: 4px 0;
+        max-width: 92vw;
+        box-sizing: border-box;
+    }
+
+    .row-editor-actions {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+    }
+
+    .row-editor-actions .secondary-btn,
+    .row-editor-actions .link-btn {
+        width: 100%;
+        text-align: center;
+    }
+
+    /* Sub-category management rows stack their name + parent selects. */
+    .subcat-row .subcat-name,
+    .subcat-row .subcat-cat {
+        flex: 1 1 100%;
+        min-width: 0;
+    }
+
+    /* 16px inputs stop iOS Safari from zooming in on focus. */
+    .row-editor input,
+    .row-editor select,
+    .row-editor textarea,
+    .subcat-row .subcat-name,
+    .subcat-row .subcat-cat,
+    .color-adder select.inline-select {
+        font-size: 16px;
+    }
+
+    /* Wide data tables: tighter cells, wrap long UUIDs, bigger tap targets
+       for the row action links. The tables still scroll horizontally inside
+       their overflow-x wrappers when needed. */
+    .admin-table th,
+    .admin-table td {
+        padding: 10px 10px;
+        font-size: 0.85rem;
+    }
+
+    .admin-table td code {
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
+
+    .admin-table .link-btn,
+    .subcat-row .link-btn {
+        display: inline-block;
+        padding: 8px 6px;
+        font-size: 0.9rem;
+    }
+
+    /* QR label preview: 2 across on screen so the codes stay legible.
+       Printing keeps the full 4-up grid (see the @media print block). */
+    .label-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .sheet {
+        padding: 16px;
+    }
+}
+
+@media screen and (max-width: 460px) {
+    .row-editor-actions .link-btn {
+        padding: 8px 0;
+    }
+
+    .admin-table th,
+    .admin-table td {
+        padding: 9px 8px;
+    }
 }
