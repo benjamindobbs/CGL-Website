@@ -3,6 +3,23 @@
 let catalog = {};
 let cart = [];
 
+// Apparel sizes need to read S, M, L, XL... not sort alphabetically.
+const SIZE_ORDER = ['XXXS', 'XXS', 'XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL', 'XXXXL'];
+
+function sizeRank(raw) {
+    let key = String(raw).toUpperCase().replace(/\s+/g, '');
+    const m = key.match(/^([2-9])(XS|XL)$/); // 2XL -> XXL, 3XS -> XXXS
+    if (m) key = 'X'.repeat(Number(m[1])) + m[2][1];
+    const i = SIZE_ORDER.indexOf(key);
+    return i === -1 ? SIZE_ORDER.length : i;
+}
+
+function compareSizes(a, b) {
+    const diff = sizeRank(a) - sizeRank(b);
+    // Fall back to a natural sort for anything not in SIZE_ORDER (e.g. numeric sizes).
+    return diff !== 0 ? diff : String(a).localeCompare(String(b), undefined, { numeric: true });
+}
+
 window.onAuthReady = function (session) {
     if (!session) {
         window.location.href = '/signin/?next=' + encodeURIComponent(window.location.pathname);
@@ -94,7 +111,7 @@ function updateSizeOptions() {
 
     if (!product || !color) return;
 
-    const sizes = Object.keys(product[color]).filter((s) => s !== '');
+    const sizes = Object.keys(product[color]).filter((s) => s !== '').sort(compareSizes);
     if (sizes.length === 0) {
         sizeGroup.style.display = 'none';
         return;

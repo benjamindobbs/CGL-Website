@@ -902,6 +902,181 @@ nav a.staff-only {
     border-bottom: none;
 }
 
+/* Bulk variant creation (Item Catalog -> Add New Item) */
+.field-note {
+    display: block;
+    margin-top: 6px;
+    font-size: 0.8rem;
+    color: #888;
+}
+
+.variant-toggles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 24px;
+    margin: 8px 0 20px;
+}
+
+.variant-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 700;
+    color: #444;
+    cursor: pointer;
+}
+
+.variant-toggle input {
+    width: 18px;
+    height: 18px;
+    accent-color: #1B75BB;
+    cursor: pointer;
+}
+
+.variant-panel {
+    border: 2px solid #EEE;
+    border-radius: 12px;
+    padding: 18px;
+    margin-bottom: 20px;
+}
+
+.variant-panel[hidden] {
+    display: none;
+}
+
+.variant-panel-label {
+    display: block;
+    font-weight: 700;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #444;
+    margin-bottom: 12px;
+}
+
+.variant-panel-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.variant-panel-head .variant-panel-label {
+    margin-bottom: 0;
+    margin-right: auto;
+}
+
+.link-btn {
+    background: none;
+    border: none;
+    padding: 0;
+    color: #1B75BB;
+    font-weight: 600;
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+
+.link-btn:hover {
+    text-decoration: underline;
+}
+
+.color-adder {
+    display: flex;
+    gap: 10px;
+}
+
+.color-adder input {
+    flex: 1;
+    min-width: 0;
+    padding: 12px 14px;
+    background-color: #FFFFFF;
+    border: 2px solid #EEE;
+    border-radius: 10px;
+    font-family: inherit;
+    font-size: 1rem;
+    color: #333;
+}
+
+.color-adder input:focus {
+    outline: none;
+    border-color: #1B75BB;
+}
+
+.color-adder .secondary-btn {
+    width: auto;
+    margin-top: 0;
+    padding: 12px 20px;
+    flex: none;
+}
+
+.checkbox-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+    gap: 10px;
+}
+
+.checkbox-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border: 2px solid #EEE;
+    border-radius: 8px;
+    font-weight: 600;
+    color: #444;
+    cursor: pointer;
+}
+
+.checkbox-item input {
+    width: 16px;
+    height: 16px;
+    accent-color: #1B75BB;
+    cursor: pointer;
+}
+
+.chip-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.chip-list:empty {
+    margin-top: 0;
+}
+
+.chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 6px 6px 12px;
+    background: rgba(27, 117, 187, 0.1);
+    color: #1B75BB;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.chip button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(27, 117, 187, 0.2);
+    color: #1B75BB;
+    font-size: 1rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.chip button:hover {
+    background: #1B75BB;
+    color: #fff;
+}
+
 .status-badge {
     display: inline-block;
     padding: 4px 10px;

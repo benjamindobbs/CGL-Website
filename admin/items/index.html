@@ -51,6 +51,9 @@
                 <div class="form-group">
                     <label for="item-uuid">UUID (leave blank to auto-generate)</label>
                     <input type="text" id="item-uuid" placeholder="Auto-generated if left blank">
+                    <small id="uuid-lock-note" class="field-note" style="display:none;">
+                        Locked to auto-generate while adding colors or sizes &mdash; each variant gets its own UUID.
+                    </small>
                 </div>
                 <div class="form-group">
                     <label for="item-price">Price (USD)</label>
@@ -60,6 +63,35 @@
                     <label for="item-stock">Starting Stock</label>
                     <input type="number" id="item-stock" min="0" step="1" value="0">
                 </div>
+
+                <div class="variant-toggles">
+                    <label class="variant-toggle">
+                        <input type="checkbox" id="toggle-colors"> Add Colors
+                    </label>
+                    <label class="variant-toggle">
+                        <input type="checkbox" id="toggle-sizes"> Add Sizes
+                    </label>
+                </div>
+
+                <div class="variant-panel" id="colors-panel" hidden>
+                    <span class="variant-panel-label">Colors</span>
+                    <div class="color-adder">
+                        <input type="text" id="color-input" placeholder="e.g. Forest Green" autocomplete="off">
+                        <button type="button" id="add-color-btn" class="secondary-btn">Add</button>
+                    </div>
+                    <div class="chip-list" id="color-chip-list"></div>
+                </div>
+
+                <div class="variant-panel" id="sizes-panel" hidden>
+                    <div class="variant-panel-head">
+                        <span class="variant-panel-label">Sizes</span>
+                        <button type="button" id="sizes-all-btn" class="link-btn">Select all</button>
+                        <button type="button" id="sizes-none-btn" class="link-btn">Clear</button>
+                    </div>
+                    <div class="checkbox-grid" id="size-checkbox-grid"></div>
+                </div>
+
+                <p id="variant-summary" class="field-note" style="display:none;"></p>
                 <p id="add-result" style="display:none;font-weight:600;"></p>
                 <button type="button" id="add-item-btn" class="secondary-btn">Add Item</button>
             </div>
@@ -104,33 +136,149 @@
                 `).join('') || '<tr><td colspan="6" class="placeholder-text">No items yet.</td></tr>';
             }
 
-            document.getElementById('add-item-btn').addEventListener('click', async () => {
-                const resultEl = document.getElementById('add-result');
+            const SIZES = ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL'];
+            const colors = [];
+            const $ = (id) => document.getElementById(id);
+
+            // "forest green" / "NAVY blue" -> "Forest Green" / "Navy Blue"
+            function normalizeColor(raw) {
+                return String(raw)
+                    .trim()
+                    .replace(/\s+/g, ' ')
+                    .toLowerCase()
+                    .replace(/(^|[\s\-/])([a-z])/g, (_, sep, ch) => sep + ch.toUpperCase());
+            }
+
+            $('size-checkbox-grid').innerHTML = SIZES.map((s) => `
+                <label class="checkbox-item">
+                    <input type="checkbox" class="size-check" value="${s}"> ${s}
+                </label>
+            `).join('');
+
+            function selectedSizes() {
+                return $('toggle-sizes').checked
+                    ? [...document.querySelectorAll('.size-check:checked')].map((c) => c.value)
+                    : [];
+            }
+
+            function enteredColors() {
+                return $('toggle-colors').checked ? colors.slice() : [];
+            }
+
+            function bulkActive() {
+                return $('toggle-colors').checked || $('toggle-sizes').checked;
+            }
+
+            function updateUuidLock() {
+                const uuid = $('item-uuid');
+                const locked = bulkActive();
+                uuid.disabled = locked;
+                if (locked) uuid.value = '';
+                $('uuid-lock-note').style.display = locked ? '' : 'none';
+            }
+
+            function updateVariantSummary() {
+                const el = $('variant-summary');
+                if (!bulkActive()) { el.style.display = 'none'; return; }
+                const nColors = enteredColors().length;
+                const nSizes = selectedSizes().length;
+                const count = Math.max(1, nColors) * Math.max(1, nSizes);
+                const parts = [];
+                if (nColors) parts.push(`${nColors} color${nColors === 1 ? '' : 's'}`);
+                if (nSizes) parts.push(`${nSizes} size${nSizes === 1 ? '' : 's'}`);
+                el.textContent = parts.length
+                    ? `Will create ${count} item${count === 1 ? '' : 's'} (${parts.join(' × ')}).`
+                    : 'Add at least one color or size, or switch the toggles off.';
+                el.style.display = '';
+            }
+
+            function renderColorChips() {
+                const list = $('color-chip-list');
+                list.innerHTML = colors.map((c, i) => `
+                    <span class="chip">${c}<button type="button" data-i="${i}" aria-label="Remove ${c}">&times;</button></span>
+                `).join('');
+                list.querySelectorAll('button').forEach((btn) => {
+                    btn.addEventListener('click', () => {
+                        colors.splice(Number(btn.dataset.i), 1);
+                        renderColorChips();
+                        updateVariantSummary();
+                    });
+                });
+            }
+
+            function addColorFromInput() {
+                const input = $('color-input');
+                const value = normalizeColor(input.value);
+                if (value && !colors.some((c) => c.toLowerCase() === value.toLowerCase())) colors.push(value);
+                input.value = '';
+                input.focus();
+                renderColorChips();
+                updateVariantSummary();
+            }
+
+            $('toggle-colors').addEventListener('change', () => {
+                $('colors-panel').hidden = !$('toggle-colors').checked;
+                updateUuidLock();
+                updateVariantSummary();
+            });
+            $('toggle-sizes').addEventListener('change', () => {
+                $('sizes-panel').hidden = !$('toggle-sizes').checked;
+                updateUuidLock();
+                updateVariantSummary();
+            });
+            $('add-color-btn').addEventListener('click', addColorFromInput);
+            $('color-input').addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') { e.preventDefault(); addColorFromInput(); }
+            });
+            $('size-checkbox-grid').addEventListener('change', updateVariantSummary);
+            $('sizes-all-btn').addEventListener('click', () => {
+                document.querySelectorAll('.size-check').forEach((c) => { c.checked = true; });
+                updateVariantSummary();
+            });
+            $('sizes-none-btn').addEventListener('click', () => {
+                document.querySelectorAll('.size-check').forEach((c) => { c.checked = false; });
+                updateVariantSummary();
+            });
+
+            $('add-item-btn').addEventListener('click', async () => {
+                const resultEl = $('add-result');
                 resultEl.style.display = 'none';
 
-                const name = document.getElementById('item-name').value.trim();
-                if (!name) { document.getElementById('item-name').focus(); return; }
+                const name = $('item-name').value.trim();
+                if (!name) { $('item-name').focus(); return; }
 
-                const res = await authFetch('/api/items', {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        name,
-                        category: document.getElementById('item-category').value.trim() || 'General',
-                        uuid: document.getElementById('item-uuid').value.trim(),
-                        priceCents: Math.round(parseFloat(document.getElementById('item-price').value || '0') * 100),
-                        startingStock: parseInt(document.getElementById('item-stock').value || '0'),
-                    }),
-                });
+                const category = $('item-category').value.trim() || 'General';
+                const priceCents = Math.round(parseFloat($('item-price').value || '0') * 100);
+                const startingStock = parseInt($('item-stock').value || '0');
+
+                const useColors = enteredColors();
+                const useSizes = selectedSizes();
+                const bulk = bulkActive() && (useColors.length > 0 || useSizes.length > 0);
+
+                let res;
+                if (bulk) {
+                    res = await authFetch('/api/items/bulk', {
+                        method: 'POST',
+                        body: JSON.stringify({ name, category, priceCents, startingStock, colors: useColors, sizes: useSizes }),
+                    });
+                } else {
+                    res = await authFetch('/api/items', {
+                        method: 'POST',
+                        body: JSON.stringify({ name, category, uuid: $('item-uuid').value.trim(), priceCents, startingStock }),
+                    });
+                }
                 const data = await res.json();
 
                 resultEl.style.display = '';
                 if (res.ok) {
                     resultEl.style.color = '#27ae60';
-                    resultEl.innerText = `Added "${data.name}" — UUID: ${data.uuid}`;
-                    document.getElementById('item-name').value = '';
-                    document.getElementById('item-uuid').value = '';
-                    document.getElementById('item-price').value = '0';
-                    document.getElementById('item-stock').value = '0';
+                    resultEl.innerText = bulk
+                        ? `Added ${data.count} item${data.count === 1 ? '' : 's'} for "${name}".`
+                        : `Added "${data.name}" — UUID: ${data.uuid}`;
+                    $('item-name').value = '';
+                    $('item-uuid').value = '';
+                    $('item-price').value = '0';
+                    $('item-stock').value = '0';
                     loadItems();
                 } else {
                     resultEl.style.color = '#c0392b';
@@ -138,6 +286,8 @@
                 }
             });
 
+            renderColorChips();
+            updateUuidLock();
             loadItems();
         });
     </script>
