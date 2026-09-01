@@ -59,6 +59,45 @@ function seedUniforms() {
     }
 }
 
+// Tradition Line pre-order, restored from the pre-overhaul quick-order form
+// (git history prior to the SQLite migration). That form had a "Style" +
+// "Print Finish" pair driving price, which today's schema doesn't model as
+// its own dimension — so each style/finish combination becomes its own
+// catalog item, the same way "Polo + Embroidery" vs "Tee-Shirt + Transfer"
+// are separate items above.
+const TRADITION_SIZES = ['S', 'M', 'L', 'XL', '2XL', '3XL'];
+
+const TRADITION_STYLES = [
+    { slug: 'hoodie', name: 'Tradition Line Hoodie', colors: ['Asphalt', 'Blush', 'Bone', 'Arctic'] },
+    { slug: 'crew', name: 'Tradition Line Crew', colors: ['Black', 'Blush', 'Bone', 'Arctic'] },
+];
+
+const TRADITION_FINISHES = [
+    { slug: 'raised-print', label: 'Raised Print', priceCents: 4000 },
+    { slug: 'embossed-embroidery', label: 'Embossed Embroidery', priceCents: 6000 },
+];
+
+function seedTraditionLine() {
+    const insert = db.prepare(`
+        INSERT OR IGNORE INTO items(uuid, name, category, variant_color, variant_size, price_cents, detail, stock_qty, active, created_at)
+        VALUES(?, ?, 'GFX', ?, ?, ?, ?, 0, 1, ?)
+    `);
+    const now = Date.now();
+
+    for (const style of TRADITION_STYLES) {
+        for (const finish of TRADITION_FINISHES) {
+            const name = `${style.name} — ${finish.label}`;
+            const detail = `Tradition Line pre-order: ${style.name} with ${finish.label} school logo.`;
+            for (const color of style.colors) {
+                for (const size of TRADITION_SIZES) {
+                    const uuid = `tradition-${style.slug}-${finish.slug}-${color.toLowerCase()}-${size.toLowerCase()}`;
+                    insert.run(uuid, name, color, size, finish.priceCents, detail, now);
+                }
+            }
+        }
+    }
+}
+
 // Initial staff whitelist, re-seeded on every boot so these core accounts
 // can't be locked out by an accidental removal. Use server/manage-staff.js
 // to add/remove anyone else (including students) against the live DB
@@ -75,4 +114,4 @@ function seedStaff() {
     for (const email of INITIAL_STAFF) insert.run(email);
 }
 
-module.exports = { seedUniforms, seedStaff };
+module.exports = { seedUniforms, seedTraditionLine, seedStaff };

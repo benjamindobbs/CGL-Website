@@ -1,8 +1,9 @@
 const express = require('express');
 const path    = require('path');
 
-const { seedUniforms, seedStaff } = require('./seed');
+const { seedUniforms, seedTraditionLine, seedStaff } = require('./seed');
 seedUniforms();
+seedTraditionLine();
 seedStaff();
 
 const app  = express();
