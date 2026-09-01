@@ -48,7 +48,7 @@
             <div class="staff-grid">
                 <a class="staff-tool-card" href="/admin/orders/">
                     <h3>Orders</h3>
-                    <p>Review and update the status of Uniforms orders placed online.</p>
+                    <p>Review and update the status of orders placed online.</p>
                 </a>
                 <a class="staff-tool-card" href="/admin/items/">
                     <h3>Item Catalog</h3>
@@ -63,6 +63,23 @@
                     <p>Scan or enter an item UUID to remove stock sold at the counter.</p>
                 </a>
             </div>
+
+            <h2 style="margin-top:40px;">Income by Category</h2>
+            <p id="income-status" class="placeholder-text">Loading totals&hellip;</p>
+            <div style="overflow-x:auto;">
+                <table class="admin-table" id="income-table" style="display:none;">
+                    <thead>
+                        <tr>
+                            <th>Category</th>
+                            <th>Online Orders</th>
+                            <th>Counter Sales</th>
+                            <th>Total</th>
+                        </tr>
+                    </thead>
+                    <tbody id="income-tbody"></tbody>
+                    <tfoot id="income-tfoot"></tfoot>
+                </table>
+            </div>
         </div>
     </main>
 
@@ -70,7 +87,45 @@
     <script src="/scripts/auth.js"></script>
     <script src="/scripts/staff-guard.js"></script>
     <script>
-        requireStaffSession(() => {});
+        requireStaffSession(() => {
+            const money = (cents) => `$${(cents / 100).toFixed(2)}`;
+
+            async function loadIncome() {
+                const statusEl = document.getElementById('income-status');
+                const table = document.getElementById('income-table');
+                try {
+                    const res = await authFetch('/api/reports/income-by-category');
+                    if (!res.ok) throw new Error('request failed');
+                    const { categories, totals } = await res.json();
+
+                    document.getElementById('income-tbody').innerHTML = categories.map((c) => `
+                        <tr>
+                            <td>${c.category}</td>
+                            <td>${money(c.orderCents)}</td>
+                            <td>${money(c.counterCents)}</td>
+                            <td><strong>${money(c.totalCents)}</strong></td>
+                        </tr>
+                    `).join('');
+
+                    document.getElementById('income-tfoot').innerHTML = `
+                        <tr>
+                            <th>All categories</th>
+                            <th>${money(totals.orderCents)}</th>
+                            <th>${money(totals.counterCents)}</th>
+                            <th>${money(totals.totalCents)}</th>
+                        </tr>
+                    `;
+
+                    statusEl.style.display = 'none';
+                    table.style.display = '';
+                } catch (err) {
+                    console.error('Failed to load income totals:', err);
+                    statusEl.innerText = 'Could not load income totals. Please refresh.';
+                }
+            }
+
+            loadIncome();
+        });
     </script>
     <script src="/scripts/nav-auth.js"></script>
 </body>

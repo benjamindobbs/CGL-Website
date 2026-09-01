@@ -46,7 +46,11 @@
                 </div>
                 <div class="form-group">
                     <label for="item-category">Category</label>
-                    <input type="text" id="item-category" placeholder="General" value="General">
+                    <select id="item-category">
+                        <option value="School Store">School Store</option>
+                        <option value="Athletics">Athletics</option>
+                        <option value="GFX" selected>GFX</option>
+                    </select>
                 </div>
                 <div class="form-group">
                     <label for="item-uuid">UUID (leave blank to auto-generate)</label>
@@ -247,7 +251,7 @@
                 const name = $('item-name').value.trim();
                 if (!name) { $('item-name').focus(); return; }
 
-                const category = $('item-category').value.trim() || 'General';
+                const category = $('item-category').value;
                 const priceCents = Math.round(parseFloat($('item-price').value || '0') * 100);
                 const startingStock = parseInt($('item-stock').value || '0');
 

@@ -1,5 +1,5 @@
 const { Router } = require('express');
-const { db, randomUUID } = require('../db');
+const { db, randomUUID, normalizeCategory } = require('../db');
 const { requireStaff } = require('../staffAuth');
 
 const router = Router();
@@ -35,7 +35,7 @@ router.post('/', requireStaff, (req, res) => {
     `).run(
         itemUuid,
         name,
-        category || 'General',
+        normalizeCategory(category),
         variantColor || null,
         variantSize || null,
         Number.isFinite(priceCents) ? priceCents : 0,
@@ -65,7 +65,7 @@ router.post('/bulk', requireStaff, (req, res) => {
 
     const price = Number.isFinite(priceCents) ? priceCents : 0;
     const stock = Number.isFinite(startingStock) ? startingStock : 0;
-    const cat = category || 'General';
+    const cat = normalizeCategory(category);
     const det = detail || '';
     const now = Date.now();
 

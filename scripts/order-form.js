@@ -31,7 +31,7 @@ window.onAuthReady = function (session) {
 
 async function loadCatalog() {
     try {
-        const res = await fetch('/api/items?category=Uniforms');
+        const res = await fetch('/api/items');
         const items = await res.json();
 
         catalog = {};

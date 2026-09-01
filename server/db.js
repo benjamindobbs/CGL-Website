@@ -96,6 +96,34 @@ db.exec(`
     CREATE INDEX IF NOT EXISTS idx_order_items_order ON order_items(order_id);
 `);
 
+// The fixed set of item categories. Income is totalled per category on the
+// Staff Tools home page. GFX is the default / catch-all (all legacy items were
+// consolidated into it by migration v1 below).
+const ITEM_CATEGORIES = ['School Store', 'Athletics', 'GFX'];
+const DEFAULT_CATEGORY = 'GFX';
+
+function normalizeCategory(value) {
+    return ITEM_CATEGORIES.includes(value) ? value : DEFAULT_CATEGORY;
+}
+
+// --- Schema migrations -------------------------------------------------------
+// Bump SCHEMA_VERSION and add a matching `if (fromVersion < N)` block for each
+// change. PRAGMA user_version persists in the DB file, so each block runs once.
+const SCHEMA_VERSION = 1;
+const fromVersion = db.prepare('PRAGMA user_version').get().user_version;
+
+if (fromVersion < 1) {
+    // Collapse every pre-existing item category (Uniforms, General, ...) into
+    // the fixed category set. Runs once; staff category edits made afterwards
+    // are preserved because this block never runs again.
+    db.exec(`UPDATE items SET category = '${DEFAULT_CATEGORY}'
+             WHERE category NOT IN ('School Store', 'Athletics', 'GFX')`);
+}
+
+if (fromVersion < SCHEMA_VERSION) {
+    db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`);
+}
+
 function upsertUser(userKey, email) {
     db.prepare(
         'INSERT OR IGNORE INTO users(user_key, email, first_seen) VALUES(?, ?, ?)'
@@ -125,4 +153,7 @@ function applyStockDelta({ itemUuid, delta, reason, actorUserKey, note = '', ref
     }
 }
 
-module.exports = { db, upsertUser, isStaff, applyStockDelta, randomUUID };
+module.exports = {
+    db, upsertUser, isStaff, applyStockDelta, randomUUID,
+    ITEM_CATEGORIES, DEFAULT_CATEGORY, normalizeCategory,
+};

@@ -40,7 +40,7 @@ const PRODUCTS = [
 function seedUniforms() {
     const insert = db.prepare(`
         INSERT OR IGNORE INTO items(uuid, name, category, variant_color, variant_size, price_cents, detail, stock_qty, active, created_at)
-        VALUES(?, ?, 'Uniforms', ?, ?, ?, ?, 0, 1, ?)
+        VALUES(?, ?, 'GFX', ?, ?, ?, ?, 0, 1, ?)
     `);
     const now = Date.now();
 
