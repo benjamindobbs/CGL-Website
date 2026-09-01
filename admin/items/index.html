@@ -53,6 +53,13 @@
                     </select>
                 </div>
                 <div class="form-group">
+                    <label for="item-subcategory">Sub-category</label>
+                    <select id="item-subcategory">
+                        <option value="">&mdash; None &mdash;</option>
+                    </select>
+                    <small class="field-note">Manage the list in the "Sub-categories" card below.</small>
+                </div>
+                <div class="form-group">
                     <label for="item-uuid">UUID (leave blank to auto-generate)</label>
                     <input type="text" id="item-uuid" placeholder="Auto-generated if left blank">
                     <small id="uuid-lock-note" class="field-note" style="display:none;">
@@ -100,6 +107,28 @@
                 <button type="button" id="add-item-btn" class="secondary-btn">Add Item</button>
             </div>
 
+            <div class="config-card" style="margin-top:40px;">
+                <h2>Sub-categories</h2>
+                <p class="field-note" style="margin-bottom:16px;">
+                    A second grouping level under a top category &mdash; e.g. "Uniforms" under GFX,
+                    "Chips" under School Store. The Staff Tools income report breaks down by these.
+                </p>
+                <div class="form-group">
+                    <label for="new-subcat-name">Add sub-category</label>
+                    <div class="color-adder">
+                        <input type="text" id="new-subcat-name" placeholder="e.g. Spring Collection" autocomplete="off">
+                        <select id="new-subcat-category" class="inline-select">
+                            <option value="School Store">School Store</option>
+                            <option value="Athletics">Athletics</option>
+                            <option value="GFX" selected>GFX</option>
+                        </select>
+                        <button type="button" id="add-subcat-btn" class="secondary-btn">Add</button>
+                    </div>
+                    <p id="subcat-result" class="field-note" style="display:none;font-weight:600;"></p>
+                </div>
+                <div id="subcat-list"></div>
+            </div>
+
             <div class="labels-controls" style="margin-top:40px;">
                 <h2 style="margin:0;">Catalog</h2>
                 <a href="/admin/labels/" class="link-btn" style="font-size:0.95rem;">Print QR label sheets &rarr;</a>
@@ -110,10 +139,12 @@
                         <tr>
                             <th>Name</th>
                             <th>Category</th>
+                            <th>Sub-category</th>
                             <th>Variant</th>
                             <th>UUID</th>
                             <th>Price</th>
                             <th>Stock</th>
+                            <th></th>
                         </tr>
                     </thead>
                     <tbody id="items-tbody"></tbody>
@@ -127,25 +158,273 @@
     <script src="/scripts/staff-guard.js"></script>
     <script>
         requireStaffSession(() => {
+            const $ = (id) => document.getElementById(id);
+            const CATEGORIES = ['School Store', 'Athletics', 'GFX'];
+            const money = (cents) => `$${(cents / 100).toFixed(2)}`;
+            const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => (
+                { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]
+            ));
+
+            let allItems = [];
+            let subcats = [];          // [{ id, name, category, item_count }]
+            let editingUuid = null;
+
+            // ---- Sub-categories -------------------------------------------------
+            function subsFor(category) {
+                return subcats
+                    .filter((s) => s.category === category)
+                    .sort((a, b) => a.name.localeCompare(b.name));
+            }
+
+            function fillSubSelect(select, category, selectedId) {
+                select.innerHTML = ['<option value="">— None —</option>']
+                    .concat(subsFor(category).map((s) =>
+                        `<option value="${s.id}" ${String(s.id) === String(selectedId ?? '') ? 'selected' : ''}>${esc(s.name)}</option>`))
+                    .join('');
+            }
+
+            async function loadSubcategories() {
+                try {
+                    const res = await authFetch('/api/subcategories');
+                    subcats = res.ok ? await res.json() : [];
+                } catch (err) {
+                    console.error('Failed to load sub-categories:', err);
+                    subcats = [];
+                }
+                fillSubSelect($('item-subcategory'), $('item-category').value, $('item-subcategory').value);
+                renderSubcategoryManager();
+            }
+
+            function renderSubcategoryManager() {
+                const wrap = $('subcat-list');
+                const groups = CATEGORIES
+                    .map((cat) => [cat, subcats.filter((s) => s.category === cat)])
+                    .filter(([, list]) => list.length);
+                if (!groups.length) {
+                    wrap.innerHTML = '<p class="placeholder-text" style="margin:0;">No sub-categories yet.</p>';
+                    return;
+                }
+                wrap.innerHTML = groups.map(([cat, list]) => `
+                    <div class="subcat-group">
+                        <h4>${esc(cat)}</h4>
+                        ${list.map((s) => `
+                            <div class="subcat-row" data-id="${s.id}">
+                                <input type="text" class="subcat-name" value="${esc(s.name)}" aria-label="Sub-category name">
+                                <select class="subcat-cat" aria-label="Parent category">
+                                    ${CATEGORIES.map((c) => `<option ${c === s.category ? 'selected' : ''}>${c}</option>`).join('')}
+                                </select>
+                                <span class="subcat-count">${s.item_count} item${s.item_count === 1 ? '' : 's'}</span>
+                                <button type="button" class="link-btn subcat-save">Save</button>
+                                <button type="button" class="link-btn subcat-delete">Delete</button>
+                            </div>
+                        `).join('')}
+                    </div>
+                `).join('');
+            }
+
+            $('add-subcat-btn').addEventListener('click', async () => {
+                const nameEl = $('new-subcat-name');
+                const resultEl = $('subcat-result');
+                const name = nameEl.value.trim();
+                if (!name) { nameEl.focus(); return; }
+                const res = await authFetch('/api/subcategories', {
+                    method: 'POST',
+                    body: JSON.stringify({ name, category: $('new-subcat-category').value }),
+                });
+                const data = await res.json().catch(() => ({}));
+                resultEl.style.display = '';
+                if (res.ok) {
+                    resultEl.style.color = '#27ae60';
+                    resultEl.textContent = `Added "${data.name}" under ${data.category}.`;
+                    nameEl.value = '';
+                    await loadSubcategories();
+                } else {
+                    resultEl.style.color = '#c0392b';
+                    resultEl.textContent = data.error || 'Failed to add sub-category.';
+                }
+            });
+
+            $('new-subcat-name').addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') { e.preventDefault(); $('add-subcat-btn').click(); }
+            });
+
+            $('subcat-list').addEventListener('click', async (e) => {
+                const row = e.target.closest('.subcat-row');
+                if (!row) return;
+                const id = row.dataset.id;
+
+                if (e.target.classList.contains('subcat-save')) {
+                    const res = await authFetch(`/api/subcategories/${id}`, {
+                        method: 'PATCH',
+                        body: JSON.stringify({
+                            name: row.querySelector('.subcat-name').value.trim(),
+                            category: row.querySelector('.subcat-cat').value,
+                        }),
+                    });
+                    if (!res.ok) {
+                        const data = await res.json().catch(() => ({}));
+                        alert(data.error || 'Failed to save sub-category.');
+                        return;
+                    }
+                    await loadSubcategories();
+                    await loadItems();
+                } else if (e.target.classList.contains('subcat-delete')) {
+                    const sub = subcats.find((s) => String(s.id) === String(id));
+                    const count = sub ? sub.item_count : 0;
+                    const label = sub ? sub.name : 'this sub-category';
+                    const msg = count
+                        ? `Delete "${label}"? ${count} item${count === 1 ? '' : 's'} will be left with no sub-category (top category is kept).`
+                        : `Delete "${label}"?`;
+                    if (!confirm(msg)) return;
+                    const res = await authFetch(`/api/subcategories/${id}`, { method: 'DELETE' });
+                    if (!res.ok) {
+                        const data = await res.json().catch(() => ({}));
+                        alert(data.error || 'Failed to delete sub-category.');
+                        return;
+                    }
+                    await loadSubcategories();
+                    await loadItems();
+                }
+            });
+
+            $('item-category').addEventListener('change', () => {
+                fillSubSelect($('item-subcategory'), $('item-category').value, '');
+            });
+
+            // ---- Catalog table -----------------------------------------------
             async function loadItems() {
                 const res = await authFetch('/api/items/admin');
-                const items = await res.json();
-                const tbody = document.getElementById('items-tbody');
-                tbody.innerHTML = items.map((item) => `
-                    <tr>
-                        <td>${item.name}</td>
-                        <td>${item.category}</td>
-                        <td>${[item.variant_color, item.variant_size].filter(Boolean).join(' / ') || '—'}</td>
-                        <td><code>${item.uuid}</code></td>
-                        <td>$${(item.price_cents / 100).toFixed(2)}</td>
-                        <td>${item.stock_qty}</td>
-                    </tr>
-                `).join('') || '<tr><td colspan="6" class="placeholder-text">No items yet.</td></tr>';
+                allItems = await res.json();
+                renderItems();
             }
+
+            function rowHtml(item) {
+                const variant = [item.variant_color, item.variant_size].filter(Boolean).join(' / ') || '—';
+                return `
+                    <tr data-uuid="${esc(item.uuid)}">
+                        <td>${esc(item.name)}${item.active ? '' : ' <span class="inactive-tag">(inactive)</span>'}</td>
+                        <td>${esc(item.category)}</td>
+                        <td>${item.subcategory ? esc(item.subcategory) : '—'}</td>
+                        <td>${esc(variant)}</td>
+                        <td><code>${esc(item.uuid)}</code></td>
+                        <td>${money(item.price_cents)}</td>
+                        <td>${item.stock_qty}</td>
+                        <td><button type="button" class="link-btn row-edit">Edit</button></td>
+                    </tr>
+                `;
+            }
+
+            function editRowHtml(item) {
+                return `
+                    <tr data-uuid="${esc(item.uuid)}" class="row-editing">
+                        <td colspan="8">
+                            <div class="row-editor">
+                                <label>Name
+                                    <input type="text" class="edit-name" value="${esc(item.name)}">
+                                </label>
+                                <label>Category
+                                    <select class="edit-category">
+                                        ${CATEGORIES.map((c) => `<option ${c === item.category ? 'selected' : ''}>${c}</option>`).join('')}
+                                    </select>
+                                </label>
+                                <label>Sub-category
+                                    <select class="edit-subcategory"></select>
+                                </label>
+                                <label>Price (USD)
+                                    <input type="number" min="0" step="0.01" class="edit-price" value="${(item.price_cents / 100).toFixed(2)}">
+                                </label>
+                                <label>Variant color
+                                    <input type="text" class="edit-color" value="${esc(item.variant_color || '')}">
+                                </label>
+                                <label>Variant size
+                                    <input type="text" class="edit-size" value="${esc(item.variant_size || '')}">
+                                </label>
+                                <label class="row-editor-full">Detail
+                                    <textarea class="edit-detail" rows="2">${esc(item.detail || '')}</textarea>
+                                </label>
+                                <label class="row-editor-check">
+                                    <input type="checkbox" class="edit-active" ${item.active ? 'checked' : ''}> Active (listed for sale)
+                                </label>
+                                <div class="row-editor-actions">
+                                    <button type="button" class="secondary-btn row-save">Save changes</button>
+                                    <button type="button" class="link-btn row-cancel">Cancel</button>
+                                    <span class="row-edit-result" style="display:none;"></span>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }
+
+            function renderItems() {
+                const tbody = $('items-tbody');
+                if (!allItems.length) {
+                    tbody.innerHTML = '<tr><td colspan="8" class="placeholder-text">No items yet.</td></tr>';
+                    return;
+                }
+                tbody.innerHTML = allItems
+                    .map((it) => (it.uuid === editingUuid ? editRowHtml(it) : rowHtml(it)))
+                    .join('');
+
+                if (editingUuid) {
+                    const item = allItems.find((it) => it.uuid === editingUuid);
+                    const tr = [...tbody.querySelectorAll('tr')].find((r) => r.dataset.uuid === editingUuid);
+                    if (item && tr) {
+                        const catSel = tr.querySelector('.edit-category');
+                        const subSel = tr.querySelector('.edit-subcategory');
+                        fillSubSelect(subSel, item.category, item.subcategory_id);
+                        catSel.addEventListener('change', () => fillSubSelect(subSel, catSel.value, ''));
+                    }
+                }
+            }
+
+            async function saveRow(tr) {
+                const q = (sel) => tr.querySelector(sel);
+                const resultEl = q('.row-edit-result');
+                const name = q('.edit-name').value.trim();
+                if (!name) { q('.edit-name').focus(); return; }
+
+                const res = await authFetch(`/api/items/${encodeURIComponent(tr.dataset.uuid)}`, {
+                    method: 'PATCH',
+                    body: JSON.stringify({
+                        name,
+                        category: q('.edit-category').value,
+                        subcategoryId: q('.edit-subcategory').value || null,
+                        priceCents: Math.round(parseFloat(q('.edit-price').value || '0') * 100),
+                        detail: q('.edit-detail').value,
+                        variantColor: q('.edit-color').value,
+                        variantSize: q('.edit-size').value,
+                        active: q('.edit-active').checked,
+                    }),
+                });
+                const data = await res.json().catch(() => ({}));
+                if (res.ok) {
+                    editingUuid = null;
+                    await loadSubcategories();
+                    await loadItems();
+                } else {
+                    resultEl.style.display = '';
+                    resultEl.style.color = '#c0392b';
+                    resultEl.textContent = data.error || 'Failed to save.';
+                }
+            }
+
+            $('items-tbody').addEventListener('click', async (e) => {
+                const tr = e.target.closest('tr');
+                if (!tr) return;
+                if (e.target.classList.contains('row-edit')) {
+                    editingUuid = tr.dataset.uuid;
+                    renderItems();
+                } else if (e.target.classList.contains('row-cancel')) {
+                    editingUuid = null;
+                    renderItems();
+                } else if (e.target.classList.contains('row-save')) {
+                    await saveRow(tr);
+                }
+            });
 
             const SIZES = ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL'];
             const colors = [];
-            const $ = (id) => document.getElementById(id);
 
             // "forest green" / "NAVY blue" -> "Forest Green" / "Navy Blue"
             function normalizeColor(raw) {
@@ -255,6 +534,7 @@
                 if (!name) { $('item-name').focus(); return; }
 
                 const category = $('item-category').value;
+                const subcategoryId = $('item-subcategory').value || null;
                 const priceCents = Math.round(parseFloat($('item-price').value || '0') * 100);
                 const startingStock = parseInt($('item-stock').value || '0');
 
@@ -266,12 +546,12 @@
                 if (bulk) {
                     res = await authFetch('/api/items/bulk', {
                         method: 'POST',
-                        body: JSON.stringify({ name, category, priceCents, startingStock, colors: useColors, sizes: useSizes }),
+                        body: JSON.stringify({ name, category, subcategoryId, priceCents, startingStock, colors: useColors, sizes: useSizes }),
                     });
                 } else {
                     res = await authFetch('/api/items', {
                         method: 'POST',
-                        body: JSON.stringify({ name, category, uuid: $('item-uuid').value.trim(), priceCents, startingStock }),
+                        body: JSON.stringify({ name, category, subcategoryId, uuid: $('item-uuid').value.trim(), priceCents, startingStock }),
                     });
                 }
                 const data = await res.json();
@@ -295,6 +575,7 @@
 
             renderColorChips();
             updateUuidLock();
+            loadSubcategories();
             loadItems();
         });
     </script>

@@ -1320,3 +1320,191 @@ nav a.staff-only {
         print-color-adjust: exact;
     }
 }
+
+/* ---- Sub-categories (Item Catalog) ---------------------------------------- */
+.color-adder select.inline-select {
+    width: auto;
+    flex: none;
+    padding: 12px 14px;
+    border: 2px solid #EEE;
+    border-radius: 10px;
+    font-family: inherit;
+    font-size: 0.95rem;
+    background: #fff;
+    color: #333;
+}
+
+.subcat-group {
+    margin-top: 18px;
+}
+
+.subcat-group h4 {
+    margin: 0 0 10px;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #666;
+}
+
+.subcat-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding: 10px 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.subcat-row:last-child {
+    border-bottom: none;
+}
+
+.subcat-row .subcat-name {
+    flex: 1;
+    min-width: 160px;
+    padding: 10px 12px;
+    border: 2px solid #EEE;
+    border-radius: 10px;
+    font-family: inherit;
+    font-size: 0.95rem;
+    color: #333;
+}
+
+.subcat-row .subcat-cat {
+    padding: 10px 12px;
+    border: 2px solid #EEE;
+    border-radius: 10px;
+    font-family: inherit;
+    font-size: 0.9rem;
+    background: #fff;
+    color: #333;
+}
+
+.subcat-row .subcat-name:focus,
+.subcat-row .subcat-cat:focus {
+    outline: none;
+    border-color: #1B75BB;
+}
+
+.subcat-count {
+    font-size: 0.8rem;
+    color: #888;
+    white-space: nowrap;
+}
+
+.subcat-row .subcat-delete {
+    color: #c0392b;
+}
+
+/* ---- Inline item edit (Item Catalog table) ------------------------------- */
+.inactive-tag {
+    font-size: 0.8rem;
+    color: #c0392b;
+    font-weight: 600;
+}
+
+.admin-table tr.row-editing td {
+    background: #F9FBFD;
+}
+
+.row-editor {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 14px 18px;
+    padding: 8px 4px;
+}
+
+.row-editor label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-weight: 700;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #666;
+}
+
+.row-editor input[type="text"],
+.row-editor input[type="number"],
+.row-editor select,
+.row-editor textarea {
+    padding: 10px 12px;
+    border: 2px solid #EEE;
+    border-radius: 10px;
+    font-family: inherit;
+    font-size: 0.95rem;
+    color: #333;
+    background: #fff;
+    text-transform: none;
+    letter-spacing: normal;
+    font-weight: 400;
+}
+
+.row-editor input:focus,
+.row-editor select:focus,
+.row-editor textarea:focus {
+    outline: none;
+    border-color: #1B75BB;
+}
+
+.row-editor .row-editor-full {
+    grid-column: 1 / -1;
+}
+
+.row-editor .row-editor-check {
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    text-transform: none;
+    letter-spacing: normal;
+    font-size: 0.85rem;
+    color: #444;
+    align-self: end;
+}
+
+.row-editor .row-editor-check input {
+    width: 18px;
+    height: 18px;
+    accent-color: #1B75BB;
+}
+
+.row-editor-actions {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.row-editor-actions .secondary-btn {
+    width: auto;
+    margin-top: 0;
+    padding: 10px 20px;
+}
+
+.row-edit-result {
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+/* ---- Income by Category, nested (Staff Tools home) --------------------- */
+.income-cat-row td {
+    font-weight: 700;
+    border-bottom: none;
+}
+
+.income-sub-row td {
+    color: #666;
+    font-size: 0.85rem;
+    padding-top: 6px;
+    padding-bottom: 6px;
+}
+
+.income-sub-row td:first-child {
+    padding-left: 36px;
+}
+
+.income-cat-row:not(:first-child) td {
+    border-top: 2px solid #f0f0f0;
+}

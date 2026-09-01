@@ -108,55 +108,71 @@
             function render(items) {
                 sheetsEl.innerHTML = '';
 
-                // Group into categories, ordered, each alphabetised.
+                // Group by category, then by sub-category within it; each leaf
+                // group alphabetised. Items with no sub-category sort last.
                 const groups = new Map();
                 for (const item of items) {
-                    if (!groups.has(item.category)) groups.set(item.category, []);
-                    groups.get(item.category).push(item);
+                    if (!groups.has(item.category)) groups.set(item.category, new Map());
+                    const subMap = groups.get(item.category);
+                    const sub = item.subcategory || '';
+                    if (!subMap.has(sub)) subMap.set(sub, []);
+                    subMap.get(sub).push(item);
                 }
                 const orderedCats = [...groups.keys()].sort(
                     (a, b) => categoryRank(a) - categoryRank(b) || a.localeCompare(b)
                 );
 
                 let sheetCount = 0;
+                let groupCount = 0;
                 for (const cat of orderedCats) {
-                    const catItems = groups.get(cat).sort(compareItems);
-                    const pages = Math.ceil(catItems.length / PER_PAGE) || 1;
+                    const subMap = groups.get(cat);
+                    const orderedSubs = [...subMap.keys()].sort((a, b) => {
+                        if (!a) return 1;
+                        if (!b) return -1;
+                        return a.localeCompare(b);
+                    });
 
-                    for (let p = 0; p < pages; p++) {
-                        sheetCount++;
-                        const pageItems = catItems.slice(p * PER_PAGE, (p + 1) * PER_PAGE);
+                    for (const sub of orderedSubs) {
+                        groupCount++;
+                        const catItems = subMap.get(sub).sort(compareItems);
+                        const pages = Math.ceil(catItems.length / PER_PAGE) || 1;
+                        const heading = sub ? `${cat} — ${sub}` : cat;
 
-                        const sheet = document.createElement('section');
-                        sheet.className = 'sheet';
+                        for (let p = 0; p < pages; p++) {
+                            sheetCount++;
+                            const pageItems = catItems.slice(p * PER_PAGE, (p + 1) * PER_PAGE);
 
-                        const head = document.createElement('div');
-                        head.className = 'sheet-header';
-                        head.innerHTML = `<span>${cat}</span><span>${p + 1} / ${pages}</span>`;
-                        sheet.appendChild(head);
+                            const sheet = document.createElement('section');
+                            sheet.className = 'sheet';
 
-                        const grid = document.createElement('div');
-                        grid.className = 'label-grid';
-                        grid.style.setProperty('--cols', COLS);
+                            const head = document.createElement('div');
+                            head.className = 'sheet-header';
+                            head.innerHTML = `<span>${heading}</span><span>${p + 1} / ${pages}</span>`;
+                            sheet.appendChild(head);
 
-                        for (const item of pageItems) {
-                            const cell = document.createElement('div');
-                            cell.className = 'label-cell';
-                            cell.innerHTML = `
-                                <div class="label-qr">${qrSvg(item.uuid)}</div>
-                                <div class="label-name">${item.name}</div>
-                                <div class="label-variant">${variantLine(item) || '&nbsp;'}</div>
-                                <div class="label-uuid">${item.uuid}</div>
-                            `;
-                            grid.appendChild(cell);
+                            const grid = document.createElement('div');
+                            grid.className = 'label-grid';
+                            grid.style.setProperty('--cols', COLS);
+
+                            for (const item of pageItems) {
+                                const cell = document.createElement('div');
+                                cell.className = 'label-cell';
+                                cell.innerHTML = `
+                                    <div class="label-qr">${qrSvg(item.uuid)}</div>
+                                    <div class="label-name">${item.name}</div>
+                                    <div class="label-variant">${variantLine(item) || '&nbsp;'}</div>
+                                    <div class="label-uuid">${item.uuid}</div>
+                                `;
+                                grid.appendChild(cell);
+                            }
+                            sheet.appendChild(grid);
+                            sheetsEl.appendChild(sheet);
                         }
-                        sheet.appendChild(grid);
-                        sheetsEl.appendChild(sheet);
                     }
                 }
 
                 summaryEl.textContent = items.length
-                    ? `${items.length} item${items.length === 1 ? '' : 's'} across ${orderedCats.length} categor${orderedCats.length === 1 ? 'y' : 'ies'} — ${sheetCount} page${sheetCount === 1 ? '' : 's'}.`
+                    ? `${items.length} item${items.length === 1 ? '' : 's'} across ${groupCount} group${groupCount === 1 ? '' : 's'} — ${sheetCount} page${sheetCount === 1 ? '' : 's'}.`
                     : 'No items to print.';
             }
 

@@ -1,41 +1,63 @@
 const { Router } = require('express');
-const { db, randomUUID, normalizeCategory } = require('../db');
+const { db, randomUUID, normalizeCategory, ITEM_SELECT, getItem } = require('../db');
 const { requireStaff } = require('../staffAuth');
 
 const router = Router();
+
+// Resolves the sub-category for a write. Passing a null/blank id files the item
+// under no sub-category. Passing a real id pins the item's top category to that
+// sub-category's parent, so the two can never drift out of sync. Throws a
+// { status, message } on a bad id.
+function resolveFiling(subcategoryId, category) {
+    const fallbackCategory = normalizeCategory(category);
+    if (subcategoryId === undefined || subcategoryId === null || subcategoryId === '') {
+        return { subcategoryId: null, category: fallbackCategory };
+    }
+    const sub = db.prepare('SELECT * FROM subcategories WHERE id = ?').get(subcategoryId);
+    if (!sub) throw { status: 400, message: 'Unknown sub-category' };
+    return { subcategoryId: sub.id, category: sub.category };
+}
 
 // Public catalog read (still requires nothing — the order page itself is
 // gated by requireAuth on /order, not on this endpoint).
 router.get('/', (req, res) => {
     const { category } = req.query;
     const rows = category
-        ? db.prepare('SELECT * FROM items WHERE category = ? AND active = 1 ORDER BY name, variant_color, variant_size').all(category)
-        : db.prepare('SELECT * FROM items WHERE active = 1 ORDER BY category, name, variant_color, variant_size').all();
+        ? db.prepare(`${ITEM_SELECT} WHERE i.category = ? AND i.active = 1 ORDER BY i.name, i.variant_color, i.variant_size`).all(category)
+        : db.prepare(`${ITEM_SELECT} WHERE i.active = 1 ORDER BY i.category, i.name, i.variant_color, i.variant_size`).all();
     res.json(rows);
 });
 
 // Staff-only: full catalog including inactive items and stock levels, for
 // the inventory admin screen.
 router.get('/admin', requireStaff, (_req, res) => {
-    const rows = db.prepare('SELECT * FROM items ORDER BY category, name, variant_color, variant_size').all();
+    const rows = db.prepare(`${ITEM_SELECT} ORDER BY i.category, i.name, i.variant_color, i.variant_size`).all();
     res.json(rows);
 });
 
 router.post('/', requireStaff, (req, res) => {
-    const { name, uuid, category, variantColor, variantSize, priceCents, detail, startingStock } = req.body;
+    const { name, uuid, category, subcategoryId, variantColor, variantSize, priceCents, detail, startingStock } = req.body;
     if (!name) return res.status(400).json({ error: 'Missing item name' });
+
+    let filing;
+    try {
+        filing = resolveFiling(subcategoryId, category);
+    } catch (err) {
+        return res.status(err.status || 400).json({ error: err.message || 'Bad sub-category' });
+    }
 
     const itemUuid = uuid && uuid.trim() ? uuid.trim() : randomUUID();
     const existing = db.prepare('SELECT 1 FROM items WHERE uuid = ?').get(itemUuid);
     if (existing) return res.status(409).json({ error: 'An item with that UUID already exists' });
 
     db.prepare(`
-        INSERT INTO items(uuid, name, category, variant_color, variant_size, price_cents, detail, stock_qty, active, created_at)
-        VALUES(?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
+        INSERT INTO items(uuid, name, category, subcategory_id, variant_color, variant_size, price_cents, detail, stock_qty, active, created_at)
+        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
     `).run(
         itemUuid,
         name,
-        normalizeCategory(category),
+        filing.category,
+        filing.subcategoryId,
         variantColor || null,
         variantSize || null,
         Number.isFinite(priceCents) ? priceCents : 0,
@@ -44,15 +66,89 @@ router.post('/', requireStaff, (req, res) => {
         Date.now()
     );
 
-    res.status(201).json(db.prepare('SELECT * FROM items WHERE uuid = ?').get(itemUuid));
+    res.status(201).json(getItem(itemUuid));
+});
+
+// Staff-only: edit an existing item in place. Every field is optional; only
+// what's sent is changed. Stock is never touched here — it moves only through
+// Restock / Storefront so the stock ledger stays complete.
+router.patch('/:uuid', requireStaff, (req, res) => {
+    const current = db.prepare('SELECT * FROM items WHERE uuid = ?').get(req.params.uuid);
+    if (!current) return res.status(404).json({ error: 'No item found for that UUID' });
+
+    const body = req.body || {};
+    const sets = [];
+    const values = [];
+
+    if (body.name !== undefined) {
+        const name = String(body.name).trim();
+        if (!name) return res.status(400).json({ error: 'Item name cannot be empty' });
+        sets.push('name = ?');
+        values.push(name);
+    }
+
+    // category / subcategory move together (see resolveFiling).
+    if (body.category !== undefined || body.subcategoryId !== undefined) {
+        const nextCategory = body.category !== undefined ? body.category : current.category;
+        const nextSub = body.subcategoryId !== undefined ? body.subcategoryId : current.subcategory_id;
+        let filing;
+        try {
+            filing = resolveFiling(nextSub, nextCategory);
+        } catch (err) {
+            return res.status(err.status || 400).json({ error: err.message || 'Bad sub-category' });
+        }
+        sets.push('category = ?', 'subcategory_id = ?');
+        values.push(filing.category, filing.subcategoryId);
+    }
+
+    if (body.priceCents !== undefined) {
+        const cents = Math.round(Number(body.priceCents));
+        if (!Number.isFinite(cents) || cents < 0) return res.status(400).json({ error: 'Price must be zero or more' });
+        sets.push('price_cents = ?');
+        values.push(cents);
+    }
+
+    if (body.detail !== undefined) {
+        sets.push('detail = ?');
+        values.push(String(body.detail));
+    }
+
+    if (body.variantColor !== undefined) {
+        sets.push('variant_color = ?');
+        values.push(String(body.variantColor).trim() || null);
+    }
+
+    if (body.variantSize !== undefined) {
+        sets.push('variant_size = ?');
+        values.push(String(body.variantSize).trim() || null);
+    }
+
+    if (body.active !== undefined) {
+        sets.push('active = ?');
+        values.push(body.active ? 1 : 0);
+    }
+
+    if (sets.length === 0) return res.status(400).json({ error: 'Nothing to update' });
+
+    values.push(req.params.uuid);
+    db.prepare(`UPDATE items SET ${sets.join(', ')} WHERE uuid = ?`).run(...values);
+
+    res.json(getItem(req.params.uuid));
 });
 
 // Staff-only: create one item per color x size combination in a single call.
 // UUIDs are always auto-generated here (a shared UUID across variants makes no
 // sense). An empty colors/sizes array just means that dimension is NULL.
 router.post('/bulk', requireStaff, (req, res) => {
-    const { name, category, priceCents, detail, startingStock, colors, sizes } = req.body;
+    const { name, category, subcategoryId, priceCents, detail, startingStock, colors, sizes } = req.body;
     if (!name) return res.status(400).json({ error: 'Missing item name' });
+
+    let filing;
+    try {
+        filing = resolveFiling(subcategoryId, category);
+    } catch (err) {
+        return res.status(err.status || 400).json({ error: err.message || 'Bad sub-category' });
+    }
 
     const dedupe = (arr) => (Array.isArray(arr)
         ? [...new Set(arr.map((s) => String(s).trim()).filter(Boolean))]
@@ -65,13 +161,12 @@ router.post('/bulk', requireStaff, (req, res) => {
 
     const price = Number.isFinite(priceCents) ? priceCents : 0;
     const stock = Number.isFinite(startingStock) ? startingStock : 0;
-    const cat = normalizeCategory(category);
     const det = detail || '';
     const now = Date.now();
 
     const insert = db.prepare(`
-        INSERT INTO items(uuid, name, category, variant_color, variant_size, price_cents, detail, stock_qty, active, created_at)
-        VALUES(?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
+        INSERT INTO items(uuid, name, category, subcategory_id, variant_color, variant_size, price_cents, detail, stock_qty, active, created_at)
+        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
     `);
 
     db.exec('BEGIN');
@@ -80,8 +175,8 @@ router.post('/bulk', requireStaff, (req, res) => {
         for (const color of colorValues) {
             for (const size of sizeValues) {
                 const uuid = randomUUID();
-                insert.run(uuid, name, cat, color, size, price, det, stock, now);
-                items.push(db.prepare('SELECT * FROM items WHERE uuid = ?').get(uuid));
+                insert.run(uuid, name, filing.category, filing.subcategoryId, color, size, price, det, stock, now);
+                items.push(getItem(uuid));
             }
         }
         db.exec('COMMIT');

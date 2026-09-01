@@ -1,0 +1,1 @@
+Add a transaction log for all purchases made through the storefront and note that this functionality will need to be added whenever online payment handling is added

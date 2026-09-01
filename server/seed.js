@@ -114,4 +114,31 @@ function seedStaff() {
     for (const email of INITIAL_STAFF) insert.run(email);
 }
 
-module.exports = { seedUniforms, seedTraditionLine, seedStaff };
+// Files the seeded uniform / tradition-line rows under matching sub-categories
+// so the nested income report is meaningful out of the box. Idempotent: the
+// sub-categories use INSERT OR IGNORE, and items are only linked while still
+// unfiled, so staff re-filing later is never clobbered. Run after the item
+// seeds so the rows exist to link.
+const SEED_SUBCATEGORIES = [
+    { name: 'Uniforms', category: 'GFX', uuidPrefix: 'uniform-' },
+    { name: 'Tradition Line', category: 'GFX', uuidPrefix: 'tradition-' },
+];
+
+function seedSubcategories() {
+    const insertSub = db.prepare(
+        'INSERT OR IGNORE INTO subcategories(name, category, created_at) VALUES(?, ?, ?)'
+    );
+    const findSub = db.prepare('SELECT id FROM subcategories WHERE category = ? AND name = ?');
+    const linkItems = db.prepare(
+        "UPDATE items SET subcategory_id = ? WHERE subcategory_id IS NULL AND uuid LIKE ?"
+    );
+    const now = Date.now();
+
+    for (const sub of SEED_SUBCATEGORIES) {
+        insertSub.run(sub.name, sub.category, now);
+        const row = findSub.get(sub.category, sub.name);
+        if (row) linkItems.run(row.id, `${sub.uuidPrefix}%`);
+    }
+}
+
+module.exports = { seedUniforms, seedTraditionLine, seedStaff, seedSubcategories };

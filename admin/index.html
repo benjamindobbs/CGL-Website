@@ -93,6 +93,9 @@
     <script>
         requireStaffSession(() => {
             const money = (cents) => `$${(cents / 100).toFixed(2)}`;
+            const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => (
+                { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]
+            ));
 
             async function loadIncome() {
                 const statusEl = document.getElementById('income-status');
@@ -102,14 +105,23 @@
                     if (!res.ok) throw new Error('request failed');
                     const { categories, totals } = await res.json();
 
-                    document.getElementById('income-tbody').innerHTML = categories.map((c) => `
-                        <tr>
-                            <td>${c.category}</td>
-                            <td>${money(c.orderCents)}</td>
-                            <td>${money(c.counterCents)}</td>
-                            <td><strong>${money(c.totalCents)}</strong></td>
-                        </tr>
-                    `).join('');
+                    document.getElementById('income-tbody').innerHTML = categories.map((c) => {
+                        const head = `
+                            <tr class="income-cat-row">
+                                <td>${esc(c.category)}</td>
+                                <td>${money(c.orderCents)}</td>
+                                <td>${money(c.counterCents)}</td>
+                                <td><strong>${money(c.totalCents)}</strong></td>
+                            </tr>`;
+                        const subs = (c.subcategories || []).map((s) => `
+                            <tr class="income-sub-row">
+                                <td>${esc(s.name)}</td>
+                                <td>${money(s.orderCents)}</td>
+                                <td>${money(s.counterCents)}</td>
+                                <td>${money(s.totalCents)}</td>
+                            </tr>`).join('');
+                        return head + subs;
+                    }).join('');
 
                     document.getElementById('income-tfoot').innerHTML = `
                         <tr>

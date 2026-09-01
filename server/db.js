@@ -34,15 +34,29 @@ db.exec(`
         email TEXT PRIMARY KEY
     );
 
+    -- Staff-managed second grouping level, nested under a fixed top category
+    -- (see ITEM_CATEGORIES). e.g. "Uniforms" or "Spring Collection" under GFX,
+    -- "Chips" under School Store. Income on the Staff Tools home page breaks
+    -- down per top category, then per sub-category within it.
+    CREATE TABLE IF NOT EXISTS subcategories (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        name       TEXT    NOT NULL,
+        category   TEXT    NOT NULL,
+        created_at INTEGER NOT NULL,
+        UNIQUE(category, name)
+    );
+
     -- Shared catalog: general store merchandise and Uniforms items live in
     -- the same table, so restock/storefront-sale/order all move the same
     -- stock_qty. variant_color/variant_size are NULL for items that don't
     -- have that dimension (e.g. general merch, or the two "you provide the
-    -- garment" services which only vary by color).
+    -- garment" services which only vary by color). subcategory_id is NULL
+    -- until staff file the item under one of their sub-categories.
     CREATE TABLE IF NOT EXISTS items (
         uuid           TEXT    PRIMARY KEY,
         name           TEXT    NOT NULL,
         category       TEXT    NOT NULL DEFAULT 'General',
+        subcategory_id INTEGER REFERENCES subcategories(id),
         variant_color  TEXT,
         variant_size   TEXT,
         price_cents    INTEGER NOT NULL DEFAULT 0,
@@ -109,7 +123,7 @@ function normalizeCategory(value) {
 // --- Schema migrations -------------------------------------------------------
 // Bump SCHEMA_VERSION and add a matching `if (fromVersion < N)` block for each
 // change. PRAGMA user_version persists in the DB file, so each block runs once.
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 2;
 const fromVersion = db.prepare('PRAGMA user_version').get().user_version;
 
 if (fromVersion < 1) {
@@ -120,9 +134,25 @@ if (fromVersion < 1) {
              WHERE category NOT IN ('School Store', 'Athletics', 'GFX')`);
 }
 
+if (fromVersion < 2) {
+    // Add items.subcategory_id to DBs created before sub-categories existed.
+    // Guarded by table_info so it is a no-op on fresh DBs, where the column is
+    // already part of the CREATE TABLE above.
+    const hasColumn = db.prepare('PRAGMA table_info(items)')
+        .all()
+        .some((col) => col.name === 'subcategory_id');
+    if (!hasColumn) {
+        db.exec('ALTER TABLE items ADD COLUMN subcategory_id INTEGER REFERENCES subcategories(id)');
+    }
+}
+
 if (fromVersion < SCHEMA_VERSION) {
     db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`);
 }
+
+// Runs every boot; the column is guaranteed to exist by here (fresh DBs get it
+// from CREATE TABLE, older DBs from the v2 migration above).
+db.exec('CREATE INDEX IF NOT EXISTS idx_items_subcategory ON items(subcategory_id)');
 
 function upsertUser(userKey, email) {
     db.prepare(
@@ -153,7 +183,20 @@ function applyStockDelta({ itemUuid, delta, reason, actorUserKey, note = '', ref
     }
 }
 
+// Catalog rows carry the sub-category name (not just its id) so callers never
+// have to join again. subcategory is NULL for items not filed under one.
+const ITEM_SELECT = `
+    SELECT i.*, s.name AS subcategory
+    FROM items i
+    LEFT JOIN subcategories s ON s.id = i.subcategory_id
+`;
+
+function getItem(uuid) {
+    return db.prepare(`${ITEM_SELECT} WHERE i.uuid = ?`).get(uuid);
+}
+
 module.exports = {
     db, upsertUser, isStaff, applyStockDelta, randomUUID,
     ITEM_CATEGORIES, DEFAULT_CATEGORY, normalizeCategory,
+    ITEM_SELECT, getItem,
 };
