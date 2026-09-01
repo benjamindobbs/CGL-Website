@@ -1450,6 +1450,53 @@ nav a.staff-only {
     color: #777;
 }
 
+/* ---- Catalog filters + bulk order-page toggle ------------------------- */
+.catalog-filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 18px;
+    margin-top: 16px;
+    margin-bottom: 12px;
+}
+
+.catalog-filters .form-group {
+    margin-bottom: 0;
+    min-width: 170px;
+}
+
+.catalog-bulk {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex: 1;
+    min-width: 260px;
+}
+
+.catalog-bulk-label {
+    font-size: 0.8rem;
+    color: #666;
+    font-weight: 600;
+}
+
+.catalog-bulk-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.catalog-bulk-actions .secondary-btn {
+    width: auto;
+    margin-top: 0;
+    padding: 10px 16px;
+    font-size: 0.9rem;
+}
+
+.catalog-bulk-actions .secondary-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
 .admin-table tr.row-editing td {
     background: #F9FBFD;
 }

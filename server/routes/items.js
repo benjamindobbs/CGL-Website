@@ -1,5 +1,5 @@
 const { Router } = require('express');
-const { db, randomUUID, normalizeCategory, ITEM_SELECT, getItem } = require('../db');
+const { db, randomUUID, normalizeCategory, ITEM_CATEGORIES, ITEM_SELECT, getItem } = require('../db');
 const { requireStaff } = require('../staffAuth');
 
 const router = Router();
@@ -194,6 +194,47 @@ router.post('/bulk', requireStaff, (req, res) => {
         console.error('Bulk item create failed:', err);
         res.status(500).json({ error: 'Failed to create items' });
     }
+});
+
+// Staff-only: flip `orderable` for a whole category and/or sub-category at once.
+// The scope must be narrowed by at least one of `category` / `subcategoryId` so
+// a stray call can't hide (or expose) the entire catalog. `subcategoryId` may be
+// a numeric id, or the string 'none' to target items filed under no sub-category.
+router.post('/bulk-orderable', requireStaff, (req, res) => {
+    const { orderable, category, subcategoryId } = req.body || {};
+    if (typeof orderable !== 'boolean') {
+        return res.status(400).json({ error: 'orderable must be true or false' });
+    }
+
+    const where = [];
+    const params = [];
+
+    if (category !== undefined && category !== null && category !== '') {
+        if (!ITEM_CATEGORIES.includes(category)) {
+            return res.status(400).json({ error: 'Unknown category' });
+        }
+        where.push('category = ?');
+        params.push(category);
+    }
+
+    if (subcategoryId === 'none') {
+        where.push('subcategory_id IS NULL');
+    } else if (subcategoryId !== undefined && subcategoryId !== null && subcategoryId !== '') {
+        const sub = db.prepare('SELECT 1 FROM subcategories WHERE id = ?').get(subcategoryId);
+        if (!sub) return res.status(400).json({ error: 'Unknown sub-category' });
+        where.push('subcategory_id = ?');
+        params.push(subcategoryId);
+    }
+
+    if (!where.length) {
+        return res.status(400).json({ error: 'Specify a category or sub-category to change' });
+    }
+
+    const result = db.prepare(
+        `UPDATE items SET orderable = ? WHERE ${where.join(' AND ')}`
+    ).run(orderable ? 1 : 0, ...params);
+
+    res.json({ updated: result.changes });
 });
 
 module.exports = router;

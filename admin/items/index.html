@@ -140,6 +140,33 @@
                 <h2 style="margin:0;">Catalog</h2>
                 <a href="/admin/labels/" class="link-btn" style="font-size:0.95rem;">Print QR label sheets &rarr;</a>
             </div>
+
+            <div class="catalog-filters">
+                <div class="form-group">
+                    <label for="filter-category">Category</label>
+                    <select id="filter-category">
+                        <option value="">All categories</option>
+                        <option value="School Store">School Store</option>
+                        <option value="Athletics">Athletics</option>
+                        <option value="GFX">GFX</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="filter-subcategory">Sub-category</label>
+                    <select id="filter-subcategory">
+                        <option value="">All sub-categories</option>
+                    </select>
+                </div>
+                <div class="catalog-bulk">
+                    <span class="catalog-bulk-label" id="bulk-scope-label">Pick a category or sub-category to bulk-change.</span>
+                    <div class="catalog-bulk-actions">
+                        <button type="button" id="bulk-show" class="secondary-btn" disabled>Show all on order page</button>
+                        <button type="button" id="bulk-hide" class="secondary-btn" disabled>Hide all from order page</button>
+                    </div>
+                </div>
+            </div>
+            <p id="catalog-count" class="field-note" style="margin:0 0 12px;"></p>
+
             <div style="overflow-x:auto;">
                 <table class="admin-table">
                     <thead>
@@ -176,6 +203,8 @@
             let allItems = [];
             let subcats = [];          // [{ id, name, category, item_count }]
             let editingUuid = null;
+            let catFilter = '';        // '' = all
+            let subFilter = '';        // '' = all, 'none' = no sub-category, else a sub-category id (string)
 
             // ---- Sub-categories -------------------------------------------------
             function subsFor(category) {
@@ -201,6 +230,7 @@
                 }
                 fillSubSelect($('item-subcategory'), $('item-category').value, $('item-subcategory').value);
                 renderSubcategoryManager();
+                renderCatalogFilterOptions();
             }
 
             function renderSubcategoryManager() {
@@ -299,6 +329,91 @@
                 fillSubSelect($('item-subcategory'), $('item-category').value, '');
             });
 
+            // ---- Catalog filters + bulk order-page toggle -------------------
+            // Rebuilds the sub-category filter <select> to match the chosen
+            // category (or lists every sub-category, prefixed by its category,
+            // when no category is picked). Keeps the current selection if it's
+            // still valid.
+            function renderCatalogFilterOptions() {
+                const sel = $('filter-subcategory');
+                const prev = sel.value;
+                const list = (catFilter ? subcats.filter((s) => s.category === catFilter) : subcats.slice())
+                    .sort((a, b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name));
+                const opts = ['<option value="">All sub-categories</option>',
+                    '<option value="none">— No sub-category —</option>'];
+                for (const s of list) {
+                    const label = catFilter ? s.name : `${s.category} / ${s.name}`;
+                    opts.push(`<option value="${s.id}">${esc(label)}</option>`);
+                }
+                sel.innerHTML = opts.join('');
+                sel.value = [...sel.options].some((o) => o.value === prev) ? prev : '';
+                subFilter = sel.value;
+            }
+
+            function filteredItems() {
+                return allItems.filter((it) => {
+                    if (catFilter && it.category !== catFilter) return false;
+                    if (subFilter === 'none') return it.subcategory_id == null;
+                    if (subFilter) return String(it.subcategory_id) === subFilter;
+                    return true;
+                });
+            }
+
+            function bulkScopeText() {
+                if (subFilter === 'none') {
+                    return catFilter ? `${catFilter} · no sub-category` : 'items with no sub-category';
+                }
+                if (subFilter) {
+                    const s = subcats.find((x) => String(x.id) === subFilter);
+                    return s ? `${s.category} / ${s.name}` : 'this sub-category';
+                }
+                return catFilter || 'all items';
+            }
+
+            function updateBulkControls(rowCount) {
+                const scoped = Boolean(catFilter || subFilter);
+                $('bulk-show').disabled = $('bulk-hide').disabled = !scoped || rowCount === 0;
+                $('bulk-scope-label').textContent = scoped
+                    ? `Bulk order-page change for ${bulkScopeText()} — ${rowCount} item${rowCount === 1 ? '' : 's'}:`
+                    : 'Pick a category or sub-category to bulk-change.';
+            }
+
+            async function bulkSetOrderable(orderable) {
+                const rows = filteredItems();
+                if (!rows.length) return;
+                const verb = orderable ? 'Show' : 'Hide';
+                const prep = orderable ? 'on' : 'from';
+                if (!confirm(`${verb} all ${rows.length} item${rows.length === 1 ? '' : 's'} in ${bulkScopeText()} ${prep} the order page?`)) return;
+
+                const body = { orderable };
+                if (catFilter) body.category = catFilter;
+                if (subFilter === 'none') body.subcategoryId = 'none';
+                else if (subFilter) body.subcategoryId = Number(subFilter);
+
+                const res = await authFetch('/api/items/bulk-orderable', {
+                    method: 'POST',
+                    body: JSON.stringify(body),
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) { alert(data.error || 'Bulk update failed.'); return; }
+                editingUuid = null;
+                await loadItems();
+            }
+
+            $('filter-category').addEventListener('change', () => {
+                catFilter = $('filter-category').value;
+                editingUuid = null;
+                renderCatalogFilterOptions();
+                renderItems();
+            });
+            $('filter-subcategory').addEventListener('change', () => {
+                subFilter = $('filter-subcategory').value;
+                editingUuid = null;
+                renderItems();
+            });
+            $('bulk-show').addEventListener('click', () => bulkSetOrderable(true));
+            $('bulk-hide').addEventListener('click', () => bulkSetOrderable(false));
+
             // ---- Catalog table -----------------------------------------------
             async function loadItems() {
                 const res = await authFetch('/api/items/admin');
@@ -373,11 +488,27 @@
 
             function renderItems() {
                 const tbody = $('items-tbody');
+                const countEl = $('catalog-count');
+
                 if (!allItems.length) {
                     tbody.innerHTML = '<tr><td colspan="9" class="placeholder-text">No items yet.</td></tr>';
+                    countEl.textContent = '';
+                    updateBulkControls(0);
                     return;
                 }
-                tbody.innerHTML = allItems
+
+                const rows = filteredItems();
+                countEl.textContent = rows.length === allItems.length
+                    ? `${allItems.length} item${allItems.length === 1 ? '' : 's'}`
+                    : `${rows.length} of ${allItems.length} items`;
+
+                if (!rows.length) {
+                    tbody.innerHTML = '<tr><td colspan="9" class="placeholder-text">No items match these filters.</td></tr>';
+                    updateBulkControls(0);
+                    return;
+                }
+
+                tbody.innerHTML = rows
                     .map((it) => (it.uuid === editingUuid ? editRowHtml(it) : rowHtml(it)))
                     .join('');
 
@@ -391,6 +522,8 @@
                         catSel.addEventListener('change', () => fillSubSelect(subSel, catSel.value, ''));
                     }
                 }
+
+                updateBulkControls(rows.length);
             }
 
             async function saveRow(tr) {
