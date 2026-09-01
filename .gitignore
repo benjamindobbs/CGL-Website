@@ -1,3 +1,7 @@
 node_modules/
 data/
 *.db
+*.db-journal
+*.db-wal
+# stray SQLite file created if DB_PATH ever resolves empty
+undefined

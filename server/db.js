@@ -52,6 +52,12 @@ db.exec(`
     -- have that dimension (e.g. general merch, or the two "you provide the
     -- garment" services which only vary by color). subcategory_id is NULL
     -- until staff file the item under one of their sub-categories.
+    --   active    : master on/off. Inactive items vanish from every screen
+    --               except the catalog admin (they are effectively archived).
+    --   orderable : whether the item shows on the public /order/ page and can
+    --               be added to an online order. Independent of active, so an
+    --               item can be counter-sold / restocked but not orderable
+    --               online. The order page requires active = 1 AND orderable = 1.
     CREATE TABLE IF NOT EXISTS items (
         uuid           TEXT    PRIMARY KEY,
         name           TEXT    NOT NULL,
@@ -63,6 +69,7 @@ db.exec(`
         detail         TEXT    NOT NULL DEFAULT '',
         stock_qty      INTEGER NOT NULL DEFAULT 0,
         active         INTEGER NOT NULL DEFAULT 1,
+        orderable      INTEGER NOT NULL DEFAULT 1,
         created_at     INTEGER NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_items_category ON items(category);
@@ -150,8 +157,13 @@ function normalizeCategory(value) {
 // --- Schema migrations -------------------------------------------------------
 // Bump SCHEMA_VERSION and add a matching `if (fromVersion < N)` block for each
 // change. PRAGMA user_version persists in the DB file, so each block runs once.
-const SCHEMA_VERSION = 3;
+const SCHEMA_VERSION = 4;
 const fromVersion = db.prepare('PRAGMA user_version').get().user_version;
+
+// True when items already has the given column (used to make ADD COLUMN
+// migrations no-ops on fresh DBs, where CREATE TABLE above supplies the column).
+const itemsHasColumn = (name) =>
+    db.prepare('PRAGMA table_info(items)').all().some((col) => col.name === name);
 
 if (fromVersion < 1) {
     // Collapse every pre-existing item category (Uniforms, General, ...) into
@@ -163,12 +175,7 @@ if (fromVersion < 1) {
 
 if (fromVersion < 2) {
     // Add items.subcategory_id to DBs created before sub-categories existed.
-    // Guarded by table_info so it is a no-op on fresh DBs, where the column is
-    // already part of the CREATE TABLE above.
-    const hasColumn = db.prepare('PRAGMA table_info(items)')
-        .all()
-        .some((col) => col.name === 'subcategory_id');
-    if (!hasColumn) {
+    if (!itemsHasColumn('subcategory_id')) {
         db.exec('ALTER TABLE items ADD COLUMN subcategory_id INTEGER REFERENCES subcategories(id)');
     }
 }
@@ -196,6 +203,14 @@ if (fromVersion < 3) {
         JOIN items i ON i.uuid = se.item_uuid
         WHERE se.reason = 'storefront_sale'
     `);
+}
+
+if (fromVersion < 4) {
+    // Add items.orderable. Existing items default to 1 (shown on the order
+    // page) so behaviour is unchanged for current catalogs.
+    if (!itemsHasColumn('orderable')) {
+        db.exec('ALTER TABLE items ADD COLUMN orderable INTEGER NOT NULL DEFAULT 1');
+    }
 }
 
 if (fromVersion < SCHEMA_VERSION) {

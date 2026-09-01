@@ -1133,14 +1133,43 @@ nav a.staff-only {
 .sheet-header {
     display: flex;
     justify-content: space-between;
-    font-weight: 700;
-    font-size: 0.85rem;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+    align-items: flex-end;
+    gap: 12px;
     color: #444;
     border-bottom: 2px solid #222;
     padding-bottom: 6px;
     margin-bottom: 14px;
+}
+
+.sheet-header-title {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.sheet-header-cat {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #888;
+}
+
+.sheet-header-sub {
+    font-size: 1.05rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #222;
+}
+
+.sheet-header-page {
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
 }
 
 .label-grid {
@@ -1401,6 +1430,24 @@ nav a.staff-only {
     font-size: 0.8rem;
     color: #c0392b;
     font-weight: 600;
+}
+
+.order-tag {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.order-tag-yes {
+    background: rgba(39, 174, 96, 0.12);
+    color: #1e874b;
+}
+
+.order-tag-no {
+    background: rgba(0, 0, 0, 0.06);
+    color: #777;
 }
 
 .admin-table tr.row-editing td {

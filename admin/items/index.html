@@ -75,6 +75,12 @@
                     <label for="item-stock">Starting Stock</label>
                     <input type="number" id="item-stock" min="0" step="1" value="0">
                 </div>
+                <div class="form-group">
+                    <label class="variant-toggle" style="text-transform:none;letter-spacing:normal;">
+                        <input type="checkbox" id="item-orderable" checked> Show on order page
+                    </label>
+                    <small class="field-note">Uncheck for items sold only at the counter. Editable later per item.</small>
+                </div>
 
                 <div class="variant-toggles">
                     <label class="variant-toggle">
@@ -145,6 +151,7 @@
                             <th>UUID</th>
                             <th>Price</th>
                             <th>Stock</th>
+                            <th>Order Page</th>
                             <th></th>
                         </tr>
                     </thead>
@@ -301,6 +308,9 @@
 
             function rowHtml(item) {
                 const variant = [item.variant_color, item.variant_size].filter(Boolean).join(' / ') || '—';
+                const orderBadge = item.orderable
+                    ? '<span class="order-tag order-tag-yes">Shown</span>'
+                    : '<span class="order-tag order-tag-no">Hidden</span>';
                 return `
                     <tr data-uuid="${esc(item.uuid)}">
                         <td>${esc(item.name)}${item.active ? '' : ' <span class="inactive-tag">(inactive)</span>'}</td>
@@ -310,6 +320,7 @@
                         <td><code>${esc(item.uuid)}</code></td>
                         <td>${money(item.price_cents)}</td>
                         <td>${item.stock_qty}</td>
+                        <td>${orderBadge}</td>
                         <td><button type="button" class="link-btn row-edit">Edit</button></td>
                     </tr>
                 `;
@@ -318,7 +329,7 @@
             function editRowHtml(item) {
                 return `
                     <tr data-uuid="${esc(item.uuid)}" class="row-editing">
-                        <td colspan="8">
+                        <td colspan="9">
                             <div class="row-editor">
                                 <label>Name
                                     <input type="text" class="edit-name" value="${esc(item.name)}">
@@ -346,6 +357,9 @@
                                 <label class="row-editor-check">
                                     <input type="checkbox" class="edit-active" ${item.active ? 'checked' : ''}> Active (listed for sale)
                                 </label>
+                                <label class="row-editor-check">
+                                    <input type="checkbox" class="edit-orderable" ${item.orderable ? 'checked' : ''}> Show on order page
+                                </label>
                                 <div class="row-editor-actions">
                                     <button type="button" class="secondary-btn row-save">Save changes</button>
                                     <button type="button" class="link-btn row-cancel">Cancel</button>
@@ -360,7 +374,7 @@
             function renderItems() {
                 const tbody = $('items-tbody');
                 if (!allItems.length) {
-                    tbody.innerHTML = '<tr><td colspan="8" class="placeholder-text">No items yet.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="9" class="placeholder-text">No items yet.</td></tr>';
                     return;
                 }
                 tbody.innerHTML = allItems
@@ -396,6 +410,7 @@
                         variantColor: q('.edit-color').value,
                         variantSize: q('.edit-size').value,
                         active: q('.edit-active').checked,
+                        orderable: q('.edit-orderable').checked,
                     }),
                 });
                 const data = await res.json().catch(() => ({}));
@@ -536,6 +551,7 @@
 
                 const category = $('item-category').value;
                 const subcategoryId = $('item-subcategory').value || null;
+                const orderable = $('item-orderable').checked;
                 const priceCents = Math.round(parseFloat($('item-price').value || '0') * 100);
                 const startingStock = parseInt($('item-stock').value || '0');
 
@@ -547,12 +563,12 @@
                 if (bulk) {
                     res = await authFetch('/api/items/bulk', {
                         method: 'POST',
-                        body: JSON.stringify({ name, category, subcategoryId, priceCents, startingStock, colors: useColors, sizes: useSizes }),
+                        body: JSON.stringify({ name, category, subcategoryId, orderable, priceCents, startingStock, colors: useColors, sizes: useSizes }),
                     });
                 } else {
                     res = await authFetch('/api/items', {
                         method: 'POST',
-                        body: JSON.stringify({ name, category, subcategoryId, uuid: $('item-uuid').value.trim(), priceCents, startingStock }),
+                        body: JSON.stringify({ name, category, subcategoryId, orderable, uuid: $('item-uuid').value.trim(), priceCents, startingStock }),
                     });
                 }
                 const data = await res.json();

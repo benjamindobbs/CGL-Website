@@ -18,13 +18,14 @@ function resolveFiling(subcategoryId, category) {
     return { subcategoryId: sub.id, category: sub.category };
 }
 
-// Public catalog read (still requires nothing — the order page itself is
-// gated by requireAuth on /order, not on this endpoint).
+// Public catalog read for the order page (still requires nothing — the order
+// page itself is gated by requireAuth on /order, not on this endpoint). Only
+// items that are both active and flagged orderable are returned.
 router.get('/', (req, res) => {
     const { category } = req.query;
     const rows = category
-        ? db.prepare(`${ITEM_SELECT} WHERE i.category = ? AND i.active = 1 ORDER BY i.name, i.variant_color, i.variant_size`).all(category)
-        : db.prepare(`${ITEM_SELECT} WHERE i.active = 1 ORDER BY i.category, i.name, i.variant_color, i.variant_size`).all();
+        ? db.prepare(`${ITEM_SELECT} WHERE i.category = ? AND i.active = 1 AND i.orderable = 1 ORDER BY i.name, i.variant_color, i.variant_size`).all(category)
+        : db.prepare(`${ITEM_SELECT} WHERE i.active = 1 AND i.orderable = 1 ORDER BY i.category, i.name, i.variant_color, i.variant_size`).all();
     res.json(rows);
 });
 
@@ -36,7 +37,7 @@ router.get('/admin', requireStaff, (_req, res) => {
 });
 
 router.post('/', requireStaff, (req, res) => {
-    const { name, uuid, category, subcategoryId, variantColor, variantSize, priceCents, detail, startingStock } = req.body;
+    const { name, uuid, category, subcategoryId, variantColor, variantSize, priceCents, detail, startingStock, orderable } = req.body;
     if (!name) return res.status(400).json({ error: 'Missing item name' });
 
     let filing;
@@ -51,8 +52,8 @@ router.post('/', requireStaff, (req, res) => {
     if (existing) return res.status(409).json({ error: 'An item with that UUID already exists' });
 
     db.prepare(`
-        INSERT INTO items(uuid, name, category, subcategory_id, variant_color, variant_size, price_cents, detail, stock_qty, active, created_at)
-        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
+        INSERT INTO items(uuid, name, category, subcategory_id, variant_color, variant_size, price_cents, detail, stock_qty, active, orderable, created_at)
+        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
     `).run(
         itemUuid,
         name,
@@ -63,6 +64,7 @@ router.post('/', requireStaff, (req, res) => {
         Number.isFinite(priceCents) ? priceCents : 0,
         detail || '',
         Number.isFinite(startingStock) ? startingStock : 0,
+        orderable === undefined ? 1 : (orderable ? 1 : 0),
         Date.now()
     );
 
@@ -128,6 +130,11 @@ router.patch('/:uuid', requireStaff, (req, res) => {
         values.push(body.active ? 1 : 0);
     }
 
+    if (body.orderable !== undefined) {
+        sets.push('orderable = ?');
+        values.push(body.orderable ? 1 : 0);
+    }
+
     if (sets.length === 0) return res.status(400).json({ error: 'Nothing to update' });
 
     values.push(req.params.uuid);
@@ -140,7 +147,7 @@ router.patch('/:uuid', requireStaff, (req, res) => {
 // UUIDs are always auto-generated here (a shared UUID across variants makes no
 // sense). An empty colors/sizes array just means that dimension is NULL.
 router.post('/bulk', requireStaff, (req, res) => {
-    const { name, category, subcategoryId, priceCents, detail, startingStock, colors, sizes } = req.body;
+    const { name, category, subcategoryId, priceCents, detail, startingStock, colors, sizes, orderable } = req.body;
     if (!name) return res.status(400).json({ error: 'Missing item name' });
 
     let filing;
@@ -162,11 +169,12 @@ router.post('/bulk', requireStaff, (req, res) => {
     const price = Number.isFinite(priceCents) ? priceCents : 0;
     const stock = Number.isFinite(startingStock) ? startingStock : 0;
     const det = detail || '';
+    const orderableFlag = orderable === undefined ? 1 : (orderable ? 1 : 0);
     const now = Date.now();
 
     const insert = db.prepare(`
-        INSERT INTO items(uuid, name, category, subcategory_id, variant_color, variant_size, price_cents, detail, stock_qty, active, created_at)
-        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
+        INSERT INTO items(uuid, name, category, subcategory_id, variant_color, variant_size, price_cents, detail, stock_qty, active, orderable, created_at)
+        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
     `);
 
     db.exec('BEGIN');
@@ -175,7 +183,7 @@ router.post('/bulk', requireStaff, (req, res) => {
         for (const color of colorValues) {
             for (const size of sizeValues) {
                 const uuid = randomUUID();
-                insert.run(uuid, name, filing.category, filing.subcategoryId, color, size, price, det, stock, now);
+                insert.run(uuid, name, filing.category, filing.subcategoryId, color, size, price, det, stock, orderableFlag, now);
                 items.push(getItem(uuid));
             }
         }

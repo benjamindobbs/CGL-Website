@@ -11,11 +11,12 @@ router.post('/', requireAuth, (req, res) => {
     if (!customerName || !email) return res.status(400).json({ error: 'Missing name or email' });
     if (!Array.isArray(cart) || cart.length === 0) return res.status(400).json({ error: 'Cart is empty' });
 
-    // Re-price every line against the live catalog — never trust client-sent prices.
+    // Re-price every line against the live catalog — never trust client-sent
+    // prices. Must be active AND orderable: the same gate the order page uses.
     const lines = [];
     for (const line of cart) {
-        const item = db.prepare('SELECT * FROM items WHERE uuid = ? AND active = 1').get(line.uuid);
-        if (!item) return res.status(400).json({ error: `Item ${line.uuid} is no longer available` });
+        const item = db.prepare('SELECT * FROM items WHERE uuid = ? AND active = 1 AND orderable = 1').get(line.uuid);
+        if (!item) return res.status(400).json({ error: `Item ${line.uuid} is no longer available to order` });
         const qty = Number(line.qty);
         if (!Number.isInteger(qty) || qty <= 0) return res.status(400).json({ error: `Invalid quantity for ${item.name}` });
         lines.push({ item, qty, lineTotalCents: item.price_cents * qty });
