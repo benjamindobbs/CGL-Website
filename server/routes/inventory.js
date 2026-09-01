@@ -1,6 +1,11 @@
 const { Router } = require('express');
-const { db, applyStockDelta } = require('../db');
+const { db, applyStockDelta, recordTransaction } = require('../db');
 const { requireStaff } = require('../staffAuth');
+
+function variantLabel(item) {
+    const v = [item.variant_color, item.variant_size].filter(Boolean).join(' ');
+    return v ? ` (${v})` : '';
+}
 
 const router = Router();
 router.use(requireStaff);
@@ -31,7 +36,23 @@ router.post('/storefront-sale', (req, res) => {
     const item = findItem(uuid);
     if (!item) return res.status(404).json({ error: 'No item found for that UUID' });
 
-    applyStockDelta({ itemUuid: uuid, delta: -quantity, reason: 'storefront_sale', actorUserKey: req.userKey });
+    const { stockEventId } = applyStockDelta({
+        itemUuid: uuid, delta: -quantity, reason: 'storefront_sale', actorUserKey: req.userKey,
+    });
+
+    // Financial ledger entry. Amount is snapshotted at the current price so a
+    // later price change never rewrites this sale.
+    recordTransaction({
+        type: 'deposit',
+        vendor: 'Storefront',
+        amountCents: quantity * item.price_cents,
+        account: item.category,
+        notes: `${item.name}${variantLabel(item)} x${quantity}`,
+        source: 'storefront_sale',
+        refStockEventId: stockEventId,
+        actorUserKey: req.userKey,
+    });
+
     res.json(findItem(uuid));
 });
 

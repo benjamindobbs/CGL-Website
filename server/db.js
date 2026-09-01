@@ -108,6 +108,33 @@ db.exec(`
         line_total_cents INTEGER NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_order_items_order ON order_items(order_id);
+
+    -- Financial ledger: one row per money movement, independent of the stock
+    -- ledger (stock_events). Today it is written only by counter sales
+    -- (routes/inventory.js -> recordTransaction). When online payment handling
+    -- is added, the order flow (routes/orders.js) MUST also write a row here
+    -- per line item so this log stays complete — see the TODO there.
+    --   type   : 'deposit' (money in) | 'withdrawal' (refund / money out)
+    --   vendor : 'Storefront' | 'Online Pay'
+    --   amount_cents : always positive; the type column carries the direction
+    --   account: item category at the time of sale (School Store / Athletics / GFX)
+    --   notes  : "<item name> x<qty>"
+    CREATE TABLE IF NOT EXISTS transactions (
+        id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+        posted_at          INTEGER NOT NULL,
+        type               TEXT    NOT NULL CHECK(type IN ('deposit','withdrawal')),
+        vendor             TEXT    NOT NULL,
+        amount_cents       INTEGER NOT NULL,
+        account            TEXT    NOT NULL DEFAULT '',
+        notes              TEXT    NOT NULL DEFAULT '',
+        source             TEXT    NOT NULL CHECK(source IN ('storefront_sale','online_order','adjustment')),
+        ref_stock_event_id INTEGER,
+        ref_order_id       INTEGER,
+        actor_user_key     TEXT    NOT NULL DEFAULT '',
+        created_at         INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_transactions_posted  ON transactions(posted_at);
+    CREATE INDEX IF NOT EXISTS idx_transactions_account ON transactions(account);
 `);
 
 // The fixed set of item categories. Income is totalled per category on the
@@ -123,7 +150,7 @@ function normalizeCategory(value) {
 // --- Schema migrations -------------------------------------------------------
 // Bump SCHEMA_VERSION and add a matching `if (fromVersion < N)` block for each
 // change. PRAGMA user_version persists in the DB file, so each block runs once.
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 3;
 const fromVersion = db.prepare('PRAGMA user_version').get().user_version;
 
 if (fromVersion < 1) {
@@ -144,6 +171,31 @@ if (fromVersion < 2) {
     if (!hasColumn) {
         db.exec('ALTER TABLE items ADD COLUMN subcategory_id INTEGER REFERENCES subcategories(id)');
     }
+}
+
+if (fromVersion < 3) {
+    // Backfill the financial ledger from every counter sale already in the
+    // stock ledger. Historical rows are valued at the item's CURRENT price —
+    // sale-time price was never recorded before this table existed — so a
+    // later price change shifts their amount. Sales made from here on snapshot
+    // their own amount_cents and are unaffected. Same caveat as the income
+    // report in routes/reports.js. Runs once (no-op on a fresh DB).
+    db.exec(`
+        INSERT INTO transactions
+            (posted_at, type, vendor, amount_cents, account, notes, source, ref_stock_event_id, actor_user_key, created_at)
+        SELECT se.created_at, 'deposit', 'Storefront',
+               (-se.delta) * i.price_cents,
+               i.category,
+               i.name ||
+                   CASE WHEN COALESCE(i.variant_color, i.variant_size) IS NOT NULL
+                        THEN ' (' || TRIM(COALESCE(i.variant_color, '') || ' ' || COALESCE(i.variant_size, '')) || ')'
+                        ELSE '' END
+                   || ' x' || (-se.delta),
+               'storefront_sale', se.id, se.actor_user_key, se.created_at
+        FROM stock_events se
+        JOIN items i ON i.uuid = se.item_uuid
+        WHERE se.reason = 'storefront_sale'
+    `);
 }
 
 if (fromVersion < SCHEMA_VERSION) {
@@ -172,15 +224,32 @@ function applyStockDelta({ itemUuid, delta, reason, actorUserKey, note = '', ref
     try {
         const result = db.prepare('UPDATE items SET stock_qty = stock_qty + ? WHERE uuid = ?').run(delta, itemUuid);
         if (result.changes === 0) throw new Error('Unknown item UUID');
-        db.prepare(
+        const insert = db.prepare(
             `INSERT INTO stock_events(item_uuid, delta, reason, actor_user_key, note, ref_order_id, created_at)
              VALUES(?, ?, ?, ?, ?, ?, ?)`
         ).run(itemUuid, delta, reason, actorUserKey, note, refOrderId, Date.now());
         db.exec('COMMIT');
+        return { stockEventId: Number(insert.lastInsertRowid) };
     } catch (err) {
         db.exec('ROLLBACK');
         throw err;
     }
+}
+
+// Appends one row to the financial ledger (transactions). Keep amountCents
+// positive — `type` ('deposit' | 'withdrawal') carries the direction. `account`
+// is the item category so the export lines up with the income-by-category
+// report. Returns the stored row.
+function recordTransaction({
+    postedAt = Date.now(), type, vendor, amountCents, account = '', notes = '',
+    source, refStockEventId = null, refOrderId = null, actorUserKey = '',
+}) {
+    const info = db.prepare(`
+        INSERT INTO transactions
+            (posted_at, type, vendor, amount_cents, account, notes, source, ref_stock_event_id, ref_order_id, actor_user_key, created_at)
+        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(postedAt, type, vendor, Math.round(amountCents), account, notes, source, refStockEventId, refOrderId, actorUserKey, Date.now());
+    return db.prepare('SELECT * FROM transactions WHERE id = ?').get(Number(info.lastInsertRowid));
 }
 
 // Catalog rows carry the sub-category name (not just its id) so callers never
@@ -196,7 +265,7 @@ function getItem(uuid) {
 }
 
 module.exports = {
-    db, upsertUser, isStaff, applyStockDelta, randomUUID,
+    db, upsertUser, isStaff, applyStockDelta, recordTransaction, randomUUID,
     ITEM_CATEGORIES, DEFAULT_CATEGORY, normalizeCategory,
     ITEM_SELECT, getItem,
 };

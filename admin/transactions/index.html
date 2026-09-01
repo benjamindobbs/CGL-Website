@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Transaction Log</title>
+
+    <link rel="icon" type="image/x-icon" href="/assets/favicon.ico">
+    <link rel="stylesheet" href="/main.css">
+    <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+</head>
+
+<body class="form-page">
+    <div class="nav-container">
+        <header>
+            <div class="logo">
+                <img src="/assets/CGL-Logo.svg" alt="Classical Graphics Lab">
+            </div>
+        </header>
+        <nav class="navbar">
+            <a href="/" class="nav-tab">Home</a>
+            <a href="/info/" class="nav-tab">Information</a>
+            <a href="/order/" class="nav-tab">Quick Order</a>
+            <a href="/admin/" class="nav-tab staff-only" hidden>Staff Tools</a>
+            <a href="/admin/orders/" class="nav-tab staff-only" hidden>Orders</a>
+            <a href="/admin/items/" class="nav-tab staff-only" hidden>Item Catalog</a>
+            <a href="/admin/restock/" class="nav-tab staff-only" hidden>Restock</a>
+            <a href="/admin/storefront/" class="nav-tab staff-only" hidden>Storefront</a>
+            <a href="/admin/transactions/" class="nav-tab staff-only" hidden>Transactions</a>
+        </nav>
+    </div>
+
+    <main class="staff-container">
+        <p id="loading-status" class="placeholder-text">Checking sign-in&hellip;</p>
+
+        <div id="staff-ui" style="display:none;">
+            <h1>Transaction Log</h1>
+            <p class="field-note" style="margin-bottom:24px;">
+                Every purchase made through the Storefront. Online payments are not recorded here
+                yet &mdash; that will be wired in when online payment handling is added.
+            </p>
+
+            <div class="config-card">
+                <div class="txn-filters">
+                    <div class="form-group">
+                        <label for="from">From</label>
+                        <input type="date" id="from">
+                    </div>
+                    <div class="form-group">
+                        <label for="to">To</label>
+                        <input type="date" id="to">
+                    </div>
+                    <div class="form-group">
+                        <label for="account">Account</label>
+                        <select id="account">
+                            <option value="">All accounts</option>
+                            <option value="School Store">School Store</option>
+                            <option value="Athletics">Athletics</option>
+                            <option value="GFX">GFX</option>
+                        </select>
+                    </div>
+                    <div class="txn-filter-actions">
+                        <button type="button" id="apply-btn" class="secondary-btn">Apply</button>
+                        <button type="button" id="export-btn" class="submit-btn">
+                            <span class="material-symbols-outlined">download</span>
+                            Export CSV
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <p id="txn-summary" class="placeholder-text" style="margin-top:24px;">Loading&hellip;</p>
+            <div style="overflow-x:auto;">
+                <table class="admin-table" id="txn-table" style="display:none;">
+                    <thead>
+                        <tr>
+                            <th>Posted Date</th>
+                            <th>Type</th>
+                            <th>Vendor</th>
+                            <th>Amount</th>
+                            <th>Account</th>
+                            <th>Notes</th>
+                        </tr>
+                    </thead>
+                    <tbody id="txn-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <script src="https://accounts.google.com/gsi/client" async defer onload="gisLoaded()"></script>
+    <script src="/scripts/auth.js"></script>
+    <script src="/scripts/staff-guard.js"></script>
+    <script>
+        requireStaffSession(() => {
+            const $ = (id) => document.getElementById(id);
+            // Signed dollars: deposits positive, withdrawals negative.
+            const money = (cents) => `${cents < 0 ? '−' : ''}$${(Math.abs(cents) / 100).toFixed(2)}`;
+            const signedCents = (t) => (t.type === 'withdrawal' ? -t.amount_cents : t.amount_cents);
+            const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => (
+                { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]
+            ));
+            // All timestamps display in America/New_York, matching the CSV export.
+            const TIME_ZONE = 'America/New_York';
+            const etDate = (ms) => new Intl.DateTimeFormat('en-CA', { timeZone: TIME_ZONE }).format(new Date(ms));
+
+            function queryString() {
+                const p = new URLSearchParams();
+                if ($('from').value) p.set('from', $('from').value);
+                if ($('to').value) p.set('to', $('to').value);
+                if ($('account').value) p.set('account', $('account').value);
+                const s = p.toString();
+                return s ? `?${s}` : '';
+            }
+
+            async function load() {
+                const summary = $('txn-summary');
+                const table = $('txn-table');
+                try {
+                    const res = await authFetch(`/api/transactions${queryString()}`);
+                    if (!res.ok) throw new Error('request failed');
+                    const rows = await res.json();
+
+                    $('txn-tbody').innerHTML = rows.map((t) => `
+                        <tr>
+                            <td>${etDate(t.posted_at)}</td>
+                            <td>${t.type === 'withdrawal' ? 'Withdrawal' : 'Deposit'}</td>
+                            <td>${esc(t.vendor)}</td>
+                            <td>${money(signedCents(t))}</td>
+                            <td>${esc(t.account)}</td>
+                            <td>${esc(t.notes)}</td>
+                        </tr>
+                    `).join('');
+
+                    const net = rows.reduce((sum, t) => sum + signedCents(t), 0);
+                    summary.textContent = rows.length
+                        ? `${rows.length} transaction${rows.length === 1 ? '' : 's'} — net ${money(net)}`
+                        : 'No transactions match these filters.';
+                    summary.classList.remove('placeholder-text');
+                    table.style.display = rows.length ? '' : 'none';
+                } catch (err) {
+                    console.error('Failed to load transactions:', err);
+                    summary.textContent = 'Could not load transactions. Please refresh.';
+                }
+            }
+
+            async function exportCsv() {
+                const btn = $('export-btn');
+                btn.disabled = true;
+                try {
+                    const res = await authFetch(`/api/transactions/export.csv${queryString()}`);
+                    if (!res.ok) throw new Error('export failed');
+                    const blob = await res.blob();
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `storefront-transactions-${etDate(Date.now())}.csv`;
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    URL.revokeObjectURL(url);
+                } catch (err) {
+                    console.error(err);
+                    alert('Could not export the CSV. Please try again.');
+                } finally {
+                    btn.disabled = false;
+                }
+            }
+
+            $('apply-btn').addEventListener('click', load);
+            $('export-btn').addEventListener('click', exportCsv);
+            [$('from'), $('to'), $('account')].forEach((el) => {
+                el.addEventListener('change', load);
+            });
+
+            load();
+        });
+    </script>
+    <script src="/scripts/nav-auth.js"></script>
+</body>
+
+</html>

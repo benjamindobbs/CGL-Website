@@ -1,1 +1,5 @@
-Add a transaction log for all purchases made through the storefront and note that this functionality will need to be added whenever online payment handling is added
+- When online payment handling is added, the paid order flow must also write to
+  the financial ledger (transactions table) so /admin/transactions and the CSV
+  export stay complete. One recordTransaction() call per line item, vendor
+  "Online Pay", account = item category, source = "online_order". Refunds record
+  a matching "withdrawal". See TODO(online-payments) in server/routes/orders.js.

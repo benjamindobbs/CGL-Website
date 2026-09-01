@@ -1508,3 +1508,32 @@ nav a.staff-only {
 .income-cat-row:not(:first-child) td {
     border-top: 2px solid #f0f0f0;
 }
+
+/* ---- Transaction Log (/admin/transactions/) ---------------------------- */
+.txn-filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 18px;
+}
+
+.txn-filters .form-group {
+    margin-bottom: 0;
+    flex: 1;
+    min-width: 150px;
+}
+
+.txn-filter-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.txn-filter-actions .secondary-btn,
+.txn-filter-actions .submit-btn {
+    width: auto;
+    margin-top: 0;
+    padding: 12px 20px;
+    font-size: 1rem;
+}

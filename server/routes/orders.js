@@ -53,6 +53,20 @@ router.post('/', requireAuth, (req, res) => {
         applyStockDelta({ itemUuid: l.item.uuid, delta: -l.qty, reason: 'order', actorUserKey: req.userKey, refOrderId: orderId });
     }
 
+    // TODO(online-payments): once real payment handling exists, an order that
+    // has actually been PAID must also be written to the financial ledger so
+    // the transaction log / CSV export (routes/transactions.js) stays complete.
+    // One recordTransaction() call per line item — its `account` is the item
+    // category — mirroring how routes/inventory.js records counter sales:
+    //   recordTransaction({
+    //       type: 'deposit', vendor: 'Online Pay',
+    //       amountCents: l.lineTotalCents, account: l.item.category,
+    //       notes: `${l.item.name} x${l.qty}`,
+    //       source: 'online_order', refOrderId: orderId, actorUserKey: req.userKey,
+    //   });
+    // Refunds record a matching 'withdrawal'. Do NOT record here today: nothing
+    // has been paid yet at order-placement time.
+
     res.status(201).json({ orderId, totalCents });
 });
 
