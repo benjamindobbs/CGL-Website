@@ -15,6 +15,7 @@ let sessionToken = localStorage.getItem(SESSION_KEY) || null;
 let currentSession = null;
 
 function gisLoaded() {
+    if (gisInited) return;
     tokenClient = google.accounts.oauth2.initTokenClient({
         client_id: GOOGLE_CLIENT_ID,
         scope: SCOPES,
@@ -22,6 +23,19 @@ function gisLoaded() {
     });
     gisInited = true;
 }
+
+// The GIS script tag's inline onload="gisLoaded()" can fire before this file has
+// executed (it loads async), in which case that call throws "gisLoaded is not
+// defined" and nothing ever initializes. Poll for the library ourselves so init
+// happens regardless of script load order.
+(function waitForGis() {
+    if (gisInited) return;
+    if (window.google && google.accounts && google.accounts.oauth2) {
+        gisLoaded();
+        return;
+    }
+    setTimeout(waitForGis, 100);
+})();
 
 function requestSignIn() {
     if (!gisInited) return;
