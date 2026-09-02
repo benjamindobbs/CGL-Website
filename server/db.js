@@ -89,16 +89,24 @@ db.exec(`
     );
     CREATE INDEX IF NOT EXISTS idx_stock_events_item ON stock_events(item_uuid);
 
+    -- payment_status is app-enforced (no CHECK so ALTER ADD COLUMN on older DBs
+    -- stays simple): 'unpaid' (order placed, Stripe Checkout not completed),
+    -- 'paid', 'refunded', 'free' ($0 order, no Stripe), 'legacy' (placed before
+    -- online payment existed). payment_ref = Stripe Checkout Session id,
+    -- payment_intent = its PaymentIntent id (used to issue refunds).
     CREATE TABLE IF NOT EXISTS orders (
-        id            INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_key      TEXT    NOT NULL REFERENCES users(user_key),
-        customer_name TEXT    NOT NULL,
-        email         TEXT    NOT NULL,
-        student_id    TEXT    NOT NULL DEFAULT '',
-        status        TEXT    NOT NULL DEFAULT 'new' CHECK(status IN ('new','in_progress','fulfilled','cancelled')),
-        total_cents   INTEGER NOT NULL,
-        created_at    INTEGER NOT NULL,
-        updated_at    INTEGER NOT NULL
+        id             INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_key       TEXT    NOT NULL REFERENCES users(user_key),
+        customer_name  TEXT    NOT NULL,
+        email          TEXT    NOT NULL,
+        student_id     TEXT    NOT NULL DEFAULT '',
+        status         TEXT    NOT NULL DEFAULT 'new' CHECK(status IN ('new','in_progress','fulfilled','cancelled')),
+        total_cents    INTEGER NOT NULL,
+        payment_status TEXT    NOT NULL DEFAULT 'unpaid',
+        payment_ref    TEXT,
+        payment_intent TEXT,
+        created_at     INTEGER NOT NULL,
+        updated_at     INTEGER NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
     CREATE INDEX IF NOT EXISTS idx_orders_user   ON orders(user_key);
@@ -157,13 +165,14 @@ function normalizeCategory(value) {
 // --- Schema migrations -------------------------------------------------------
 // Bump SCHEMA_VERSION and add a matching `if (fromVersion < N)` block for each
 // change. PRAGMA user_version persists in the DB file, so each block runs once.
-const SCHEMA_VERSION = 4;
+const SCHEMA_VERSION = 5;
 const fromVersion = db.prepare('PRAGMA user_version').get().user_version;
 
-// True when items already has the given column (used to make ADD COLUMN
+// True when the table already has the given column (used to make ADD COLUMN
 // migrations no-ops on fresh DBs, where CREATE TABLE above supplies the column).
-const itemsHasColumn = (name) =>
-    db.prepare('PRAGMA table_info(items)').all().some((col) => col.name === name);
+const tableHasColumn = (table, name) =>
+    db.prepare(`PRAGMA table_info(${table})`).all().some((col) => col.name === name);
+const itemsHasColumn = (name) => tableHasColumn('items', name);
 
 if (fromVersion < 1) {
     // Collapse every pre-existing item category (Uniforms, General, ...) into
@@ -211,6 +220,23 @@ if (fromVersion < 4) {
     if (!itemsHasColumn('orderable')) {
         db.exec('ALTER TABLE items ADD COLUMN orderable INTEGER NOT NULL DEFAULT 1');
     }
+}
+
+if (fromVersion < 5) {
+    // Online payment (Stripe). Add the payment columns to DBs created before it.
+    if (!tableHasColumn('orders', 'payment_status')) {
+        db.exec("ALTER TABLE orders ADD COLUMN payment_status TEXT NOT NULL DEFAULT 'unpaid'");
+    }
+    if (!tableHasColumn('orders', 'payment_ref')) {
+        db.exec('ALTER TABLE orders ADD COLUMN payment_ref TEXT');
+    }
+    if (!tableHasColumn('orders', 'payment_intent')) {
+        db.exec('ALTER TABLE orders ADD COLUMN payment_intent TEXT');
+    }
+    // Every order that existed before this migration predates online payment —
+    // mark it 'legacy' so it is never swept as an abandoned unpaid order and
+    // never implies a card was charged. No-op on a fresh DB (no rows).
+    db.exec("UPDATE orders SET payment_status = 'legacy'");
 }
 
 if (fromVersion < SCHEMA_VERSION) {
@@ -279,8 +305,21 @@ function getItem(uuid) {
     return db.prepare(`${ITEM_SELECT} WHERE i.uuid = ?`).get(uuid);
 }
 
+// Cancels orders whose shopper never finished Stripe Checkout. Only touches
+// 'unpaid' orders (nothing was charged, no stock/ledger movement to undo) older
+// than maxAgeMs. A late webhook still wins if payment actually completes first —
+// it processes regardless of status. Returns the number of orders swept.
+function sweepStaleUnpaidOrders(maxAgeMs = 24 * 60 * 60 * 1000) {
+    const cutoff = Date.now() - maxAgeMs;
+    const info = db.prepare(`
+        UPDATE orders SET status = 'cancelled', updated_at = ?
+        WHERE payment_status = 'unpaid' AND status <> 'cancelled' AND created_at < ?
+    `).run(Date.now(), cutoff);
+    return info.changes;
+}
+
 module.exports = {
     db, upsertUser, isStaff, applyStockDelta, recordTransaction, randomUUID,
     ITEM_CATEGORIES, DEFAULT_CATEGORY, normalizeCategory,
-    ITEM_SELECT, getItem,
+    ITEM_SELECT, getItem, sweepStaleUnpaidOrders,
 };

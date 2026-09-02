@@ -59,6 +59,7 @@
                             <th>Student ID</th>
                             <th>Items</th>
                             <th>Total</th>
+                            <th>Payment</th>
                             <th>Status</th>
                         </tr>
                     </thead>
@@ -74,12 +75,30 @@
     <script>
         requireStaffSession(() => {
             const STATUSES = ['new', 'in_progress', 'fulfilled', 'cancelled'];
+            const PAY_LABELS = {
+                paid: 'Paid', unpaid: 'Unpaid', refunded: 'Refunded',
+                free: 'No charge', legacy: 'Pre-online',
+            };
 
-            async function updateStatus(orderId, status) {
-                await authFetch(`/api/orders/${orderId}`, {
+            function payBadge(status) {
+                const label = PAY_LABELS[status] || status || '—';
+                return `<span class="status-badge pay-${status}">${label}</span>`;
+            }
+
+            async function updateStatus(orderId, status, paymentStatus) {
+                if (status === 'cancelled' && paymentStatus === 'paid' &&
+                    !confirm('Cancelling this order will issue a full refund to the customer through Stripe. Continue?')) {
+                    loadOrders(); // reset the dropdown
+                    return;
+                }
+                const res = await authFetch(`/api/orders/${orderId}`, {
                     method: 'PATCH',
                     body: JSON.stringify({ status }),
                 });
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    alert(err.error || 'Could not update the order.');
+                }
                 loadOrders();
             }
             window.updateStatus = updateStatus;
@@ -105,14 +124,15 @@
                             <td>${order.student_id || '—'}</td>
                             <td>${itemsSummary}</td>
                             <td>$${(order.total_cents / 100).toFixed(2)}</td>
+                            <td>${payBadge(order.payment_status)}</td>
                             <td>
-                                <select onchange="updateStatus(${order.id}, this.value)">
+                                <select onchange="updateStatus(${order.id}, this.value, '${order.payment_status}')">
                                     ${statusOptions}
                                 </select>
                             </td>
                         </tr>
                     `;
-                }).join('') || '<tr><td colspan="6" class="placeholder-text">No orders yet.</td></tr>';
+                }).join('') || '<tr><td colspan="7" class="placeholder-text">No orders yet.</td></tr>';
             }
 
             document.getElementById('status-filter').addEventListener('change', loadOrders);

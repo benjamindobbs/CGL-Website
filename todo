@@ -1,5 +1,14 @@
-- When online payment handling is added, the paid order flow must also write to
-  the financial ledger (transactions table) so /admin/transactions and the CSV
-  export stay complete. One recordTransaction() call per line item, vendor
-  "Online Pay", account = item category, source = "online_order". Refunds record
-  a matching "withdrawal". See TODO(online-payments) in server/routes/orders.js.
+- Online payments (Stripe Checkout) are implemented: order -> Checkout redirect,
+  webhook (routes/payments.js) marks paid + moves stock + writes the financial
+  ledger, cancel of a paid order auto-refunds and reverses stock, unpaid orders
+  auto-cancel after 24h. To go live:
+    1. fly secrets set STRIPE_SECRET_KEY / STRIPE_WEBHOOK_SECRET / PUBLIC_BASE_URL
+       (see the comment block in fly.toml)
+    2. Add the webhook endpoint in the Stripe dashboard:
+       https://<PUBLIC_BASE_URL>/api/payments/webhook
+       events: checkout.session.completed, checkout.session.expired
+    3. Enable Checkout receipt emails in Stripe dashboard settings.
+    4. Run one real low-value order + refund end to end.
+
+- Still open: confirm sales-tax handling with the 501(c)(3) treasurer (add Stripe
+  Tax if needed); order-status email notifications; partial refunds.

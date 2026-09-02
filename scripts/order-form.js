@@ -241,12 +241,14 @@ async function submitFinalOrder() {
                 cart: cart.map((l) => ({ uuid: l.uuid, qty: l.qty })),
             }),
         });
+        const result = await res.json().catch(() => ({}));
 
         if (res.ok) {
             cart = [];
-            window.location.href = '/thanks/';
+            // Paid orders come back with a Stripe Checkout URL to redirect to;
+            // $0 orders come back { free: true } and skip straight to thanks.
+            window.location.href = result.checkoutUrl || '/thanks/';
         } else {
-            const result = await res.json();
             statusEl.innerText = 'Error: ' + (result.error || 'Submission failed');
             statusEl.style.display = '';
             submitBtn.innerHTML = 'Place Order';

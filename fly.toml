@@ -10,6 +10,20 @@
 #   fly ssh console -a cgl-website -C "node server/manage-staff.js list"
 # (fly ssh console starts a machine if none is running, since
 # min_machines_running = 0 below lets it fully scale to zero when idle.)
+#
+# Stripe (online order payments). Set as secrets, never in [env]:
+#   fly secrets set -a cgl-website \
+#     STRIPE_SECRET_KEY=sk_live_xxx \
+#     STRIPE_WEBHOOK_SECRET=whsec_xxx \
+#     PUBLIC_BASE_URL=https://cgl-website.fly.dev
+# STRIPE_WEBHOOK_SECRET comes from the Stripe dashboard endpoint you add at
+#   https://<PUBLIC_BASE_URL>/api/payments/webhook
+# subscribed to: checkout.session.completed, checkout.session.expired
+# Until all three are set, isStripeConfigured() is false and any order with a
+# nonzero total is refused with a 503 (the site still runs; $0 orders still work).
+# Local dev:
+#   stripe listen --forward-to localhost:8080/api/payments/webhook
+#   (use the whsec_ it prints, plus PUBLIC_BASE_URL=http://localhost:8080)
 
 app = 'cgl-website'
 primary_region = 'ams'

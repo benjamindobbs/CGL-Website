@@ -1092,6 +1092,12 @@ nav a.staff-only {
 .status-fulfilled { background: rgba(39, 174, 96, 0.15); color: #27ae60; }
 .status-cancelled { background: rgba(255, 77, 77, 0.15); color: #ff4d4d; }
 
+.pay-paid { background: rgba(39, 174, 96, 0.15); color: #27ae60; }
+.pay-unpaid { background: rgba(230, 168, 23, 0.15); color: #b8860b; }
+.pay-refunded { background: rgba(255, 77, 77, 0.15); color: #ff4d4d; }
+.pay-free { background: rgba(27, 117, 187, 0.1); color: #1B75BB; }
+.pay-legacy { background: #ECECEC; color: #777; }
+
 @keyframes pulse {
     0% { transform: scale(1); opacity: 1; }
     50% { transform: scale(1.1); opacity: 0.8; }
