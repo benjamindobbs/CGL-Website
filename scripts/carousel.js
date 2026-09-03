@@ -15,6 +15,7 @@ const photos = [
 
 document.addEventListener('DOMContentLoaded', () => {
     const track = document.getElementById('carousel-track');
+    if (!track) return;
 
     photos.forEach((src) => {
         const slide = document.createElement('img');

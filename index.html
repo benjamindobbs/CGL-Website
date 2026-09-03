@@ -13,7 +13,7 @@
         href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
 </head>
 
-<body>
+<body class="form-page">
     <div class="nav-container">
         <header>
             <div class="logo">
@@ -31,26 +31,69 @@
         <nav class="navbar">
             <a href="/" class="nav-tab" aria-current="page">Home</a>
             <a href="/info/" class="nav-tab">Information</a>
-            <a href="/order/" class="nav-tab">Quick Order</a>
-            <a href="/admin/" class="nav-tab staff-only" hidden>Staff Tools</a>
-            <a href="/admin/orders/" class="nav-tab staff-only" hidden>Orders</a>
-            <a href="/admin/items/" class="nav-tab staff-only" hidden>Item Catalog</a>
-            <a href="/admin/restock/" class="nav-tab staff-only" hidden>Restock</a>
-            <a href="/admin/storefront/" class="nav-tab staff-only" hidden>Storefront</a>
-            <a href="/admin/transactions/" class="nav-tab staff-only" hidden>Transactions</a>
+            <a href="/order/" class="nav-tab">Shop</a>
+            <a href="/admin/" class="nav-tab staff-only" hidden>Staff Dashboard</a>
         </nav>
     </div>
 
-    <div class="carousel-container">
-        <div class="content">
-            <h1>The Tradition Line</h1>
-            <p><a href="/order/">Pre Orders</a> Open Now</p>
-            <p class="staff-shortcuts">School staff: <a href="/request/">request a print job</a> &middot; <a href="/jerseys/">build a jersey roster</a></p>
-        </div>
-        <div class="carousel-track" id="carousel-track">
-        </div>
+    <main class="home">
+        <section class="home-hero">
+            <div class="carousel-container">
+                <div class="carousel-track" id="carousel-track"></div>
+            </div>
+            <div class="home-hero-copy">
+                <h1>Classical Graphics Lab</h1>
+                <p>Student-designed, student-made apparel, signage, and print for Classical Magnet
+                    and the greater Hartford community.</p>
+                <div class="home-hero-actions">
+                    <a href="/order/" class="btn btn-lg">Shop the Tradition Line</a>
+                    <a href="/info/" class="btn btn-ghost btn-lg">Our Story</a>
+                </div>
+            </div>
+        </section>
 
-    </div>
+        <section class="home-cards">
+            <a class="home-card" href="/order/">
+                <span class="material-symbols-outlined">storefront</span>
+                <h3>Shop &amp; Pre-Order</h3>
+                <p>Browse the school store and reserve Tradition Line pieces.</p>
+            </a>
+            <a class="home-card district-only" href="/request/" hidden>
+                <span class="material-symbols-outlined">assignment</span>
+                <h3>Request a Print Job</h3>
+                <p>Hartford school staff: send us artwork and details for your building or team.</p>
+            </a>
+            <a class="home-card district-only" href="/jerseys/" hidden>
+                <span class="material-symbols-outlined">groups</span>
+                <h3>Team Jersey Roster</h3>
+                <p>Coaches: build and revise a roster of names, numbers, and sizes.</p>
+            </a>
+            <a class="home-card staff-only" href="/admin/" hidden>
+                <span class="material-symbols-outlined">dashboard</span>
+                <h3>Staff Dashboard</h3>
+                <p>Orders, job requests, inventory, restock, and reports.</p>
+            </a>
+            <a class="home-card" href="/info/">
+                <span class="material-symbols-outlined">history_edu</span>
+                <h3>About CGL</h3>
+                <p>How a schedule mixup became a student-run print shop.</p>
+            </a>
+        </section>
+
+        <section class="home-story">
+            <img src="/assets/about-us/room135.jpg" alt="The CGL lab">
+            <div class="home-story-text">
+                <span class="subtitle">OUR STORY</span>
+                <h2>From humble beginnings</h2>
+                <p>It started almost by accident &mdash; a schedule mixup, a Digital Art class with no
+                    software and no budget, and some screenprinting gear pieced together from friends
+                    and CCSU dumpsters. In March 2022 we made our first run of student-made hoodies.</p>
+                <p>Since then, students have produced hundreds of designs and thousands of custom
+                    garments for Classical, Hartford Public Schools, and local non-profits.</p>
+                <a href="/info/" class="btn">Read more</a>
+            </div>
+        </section>
+    </main>
 
     <script src="/scripts/carousel.js"></script>
     <script src="/scripts/auth.js"></script>

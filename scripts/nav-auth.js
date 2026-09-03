@@ -1,21 +1,35 @@
-// Shows the staff-only navbar links (marked `.nav-tab.staff-only`, `hidden` by
-// default) once an active staff session is present. Include on any page AFTER
-// scripts/auth.js and after any page code that assigns window.onAuthReady
-// (e.g. the inline requireStaffSession(...) call on admin pages), so this wraps
-// rather than clobbers the page's own handler.
+// Reveals role-gated elements once the auth session resolves:
+//   .staff-only     — shown for a whitelisted staff session (session.isStaff)
+//   .district-only   — shown for a @hartfordschools.org staff session
+// Both are `hidden` in markup by default. Works on any element (nav tabs,
+// homepage cards, etc.), not just links.
+//
+// Include on any page AFTER scripts/auth.js and after any page code that assigns
+// window.onAuthReady (e.g. the inline requireStaffSession(...) call), so this
+// wraps rather than clobbers the page's own handler.
 (function () {
-    function renderNav(session) {
-        var show = !!(session && session.isStaff);
-        var links = document.querySelectorAll('.nav-tab.staff-only');
-        for (var i = 0; i < links.length; i++) links[i].hidden = !show;
+    function isDistrict(session) {
+        return !!(session && session.email &&
+            String(session.email).toLowerCase().endsWith('@hartfordschools.org'));
+    }
+
+    function applyRoleVisibility(session) {
+        var staff = !!(session && session.isStaff);
+        var district = staff || isDistrict(session);
+
+        var staffEls = document.querySelectorAll('.staff-only');
+        for (var i = 0; i < staffEls.length; i++) staffEls[i].hidden = !staff;
+
+        var districtEls = document.querySelectorAll('.district-only');
+        for (var j = 0; j < districtEls.length; j++) districtEls[j].hidden = !district;
     }
 
     var prev = typeof window.onAuthReady === 'function' ? window.onAuthReady : null;
     window.onAuthReady = function (session) {
-        renderNav(session);
+        applyRoleVisibility(session);
         if (prev) prev(session);
     };
 
     // If auth already resolved before this script ran, catch up from the cache.
-    if (typeof currentSession !== 'undefined' && currentSession) renderNav(currentSession);
+    if (typeof currentSession !== 'undefined' && currentSession) applyRoleVisibility(currentSession);
 })();

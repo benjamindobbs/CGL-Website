@@ -11,7 +11,7 @@ html {
 
 
 
-/* Keep the nav/header above the fixed carousel */
+/* Public site top nav wrapper */
 .nav-container {
     position: relative;
     z-index: 10;
@@ -92,20 +92,16 @@ nav a.staff-only {
 }
 
 
-/* Carousel Container */
+/* Carousel — a contained hero strip on the home page (was a fixed, centered
+   square; now it flows inside .home-hero). */
 .carousel-container {
-    position: fixed;
-    top: 55%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    /* Constrain by height as well as width so the square never grows
-       tall enough to ride up under the nav bar */
-    width: min(40vw, 60vh);
+    position: relative;
+    width: 100%;
+    max-width: 520px;
     aspect-ratio: 1 / 1;
-    z-index: 2;
     overflow: hidden;
-    border-radius: 15px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
 }
 .carousel-track {
     display: flex;
@@ -136,103 +132,6 @@ nav a.staff-only {
     81%, 88%    { transform: translateX(-74.9999%); } 
     90%, 97%    { transform: translateX(-83.3333%); } 
     100%        { transform: translateX(-91.6666%); } /* Slide to the Ghost Image 1, then snap to start */
-}
-
-/* Content Layer */
-.content {
-    position: absolute; /* Relative to .carousel-container */
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    
-    /* Centering the text */
-    display: flex;
-    flex-direction: column;
-    justify-content:flex-end;
-    align-items: center;
-    
-    text-align: center;
-    color: white;
-    z-index: 5; /* Sits above the images */
-    
-    background: rgba(0, 0, 0, 0.2); 
-    pointer-events: none; /* Allows clicks to pass through to images if needed */
-}
-
-.content h1 {
-    /* Font sizing */
-    font-size: 2.5rem;
-    margin: 0;
-    
-    /* Center the text inside the blue box */
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    text-align: center;
-    
-    /* The blue background */
-    background-color: rgba(27, 117, 187, 0.9); 
-    color: white;
-    
-    padding: 20px 40px; 
-    
-    /* Visual styling */
-    text-shadow: 2px 2px 8px rgba(0,0,0,0.5);
-    border-radius: 8px;
-    
-    /* Ensure it doesn't get wider than the carousel */
-    max-width: 80%;
-    line-height: 1.2;
-}
-
-.content p {
-    margin-top: 10px;
-    font-size: 1.1rem;
-    text-shadow: 1px 1px 4px rgba(0,0,0,0.8);
-    font-weight: 500;
-}
-
-/* Styling the link in the subtext */
-.content p a {
-    color: #FFFFFF; /* Match the paragraph text color */
-    text-decoration: none; /* Remove the underline */
-    
-    font-weight: 600;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.3); /* Subtle "indicator" line */
-    transition: all 0.3s ease; /* Smooth color fade */
-    
-    /* 3. Enable interaction */
-    pointer-events: auto; /* Overrides the 'none' from the parent container */
-    cursor: pointer;
-}
-
-/* Hover State */
-.content p a:hover {
-    color: #1B75BB; 
-    border-bottom-color: #1B75BB; /* Line changes color too */
-    background-color: rgba(255, 255, 255, 0.9); /* Slight highlight background */
-    border-radius: 4px;
-    padding: 2px 6px; 
-}
-
-/* Responsive Adjustments for Mobile */
-@media (max-width: 768px) {
-    .carousel-container {
-        width: min(90vw, 55vh); /* Wider on mobile, still height-capped */
-        top: 40%;    /* Adjust vertical position if needed */
-    }
-
-    /* Adjust the Overlay Text */
-    .content h1 {
-        font-size: 1.5rem; /* Smaller font for small screens */
-        padding: 10px 15px;
-    }
-
-    .content p {
-        font-size: 0.9rem;
-        padding: 0 10px;
-    }
 }
 
 /* About Page Styles */
@@ -2111,4 +2010,383 @@ nav a.staff-only {
     gap: 16px;
     flex-wrap: wrap;
     margin-top: 20px;
+}
+
+/* ===================================================================
+   Role-gated elements (any element, not just nav tabs). Revealed by
+   scripts/nav-auth.js: .staff-only for a whitelisted staff session,
+   .district-only for a @hartfordschools.org staff session.
+   =================================================================== */
+.staff-only[hidden],
+.district-only[hidden] {
+    display: none !important;
+}
+
+/* ===================================================================
+   Home landing — scrolling hero + card grid
+   =================================================================== */
+.home {
+    max-width: 1150px;
+    margin: 0 auto;
+    padding: 0 5% 70px;
+}
+
+.home-hero {
+    display: grid;
+    grid-template-columns: minmax(0, 460px) 1fr;
+    gap: 48px;
+    align-items: center;
+    padding: 56px 0 48px;
+}
+
+.home-hero-copy h1 {
+    font-size: 2.6rem;
+    line-height: 1.1;
+    margin: 0 0 14px;
+    color: #1a1a1a;
+}
+
+.home-hero-copy p {
+    font-size: 1.15rem;
+    color: #555;
+    line-height: 1.5;
+    margin: 0 0 26px;
+    max-width: 46ch;
+}
+
+.home-hero-actions {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+
+.btn-lg {
+    padding: 12px 24px;
+    font-size: 1rem;
+    border-radius: 8px;
+}
+
+.btn-ghost {
+    background: transparent;
+    color: #1B75BB;
+    border: 2px solid #1B75BB;
+}
+
+.btn-ghost:hover {
+    background: rgba(27, 117, 187, 0.08);
+}
+
+.home-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 20px;
+}
+
+.home-card {
+    background: #fff;
+    border: 1px solid #eee;
+    border-radius: 16px;
+    padding: 26px 24px;
+    text-decoration: none;
+    color: #222;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+    transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.home-card:hover {
+    transform: translateY(-3px);
+    border-color: #1B75BB;
+}
+
+.home-card .material-symbols-outlined {
+    font-size: 34px;
+    color: #1B75BB;
+}
+
+.home-card h3 {
+    margin: 12px 0 6px;
+    color: #1B75BB;
+}
+
+.home-card p {
+    margin: 0;
+    color: #666;
+    font-size: 0.92rem;
+    line-height: 1.45;
+}
+
+.home-story {
+    display: grid;
+    grid-template-columns: 1fr 1.2fr;
+    gap: 40px;
+    align-items: center;
+    margin-top: 60px;
+    background: #fff;
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+}
+
+.home-story img {
+    width: 100%;
+    height: 100%;
+    max-height: 340px;
+    object-fit: cover;
+    display: block;
+}
+
+.home-story-text {
+    padding: 36px 40px 36px 0;
+}
+
+.home-story-text .subtitle {
+    color: #1B75BB;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    font-size: 0.8rem;
+}
+
+.home-story-text h2 {
+    margin: 6px 0 14px;
+}
+
+.home-story-text p {
+    color: #555;
+    line-height: 1.6;
+    margin: 0 0 18px;
+}
+
+@media (max-width: 900px) {
+    .home-hero {
+        grid-template-columns: 1fr;
+        gap: 28px;
+        padding: 32px 0;
+    }
+
+    .carousel-container {
+        max-width: 420px;
+        margin: 0 auto;
+    }
+
+    .home-hero-copy h1 {
+        font-size: 2rem;
+    }
+
+    .home-story {
+        grid-template-columns: 1fr;
+    }
+
+    .home-story img {
+        max-height: 220px;
+    }
+
+    .home-story-text {
+        padding: 28px 24px;
+    }
+}
+
+/* ===================================================================
+   Admin sidebar shell — wraps every /admin/* page
+   =================================================================== */
+.admin-layout {
+    display: flex;
+    min-height: 100vh;
+    align-items: stretch;
+}
+
+.admin-sidebar {
+    flex: 0 0 240px;
+    width: 240px;
+    background: #F2F2F2;
+    border-right: 1px solid #e2e2e2;
+    display: flex;
+    flex-direction: column;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+}
+
+.admin-sidebar-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 20px;
+    border-bottom: 1px solid #e2e2e2;
+}
+
+.admin-sidebar-head img {
+    height: 34px;
+    display: block;
+}
+
+.admin-sidebar-close {
+    display: none;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #555;
+    padding: 4px;
+}
+
+.admin-nav {
+    flex: 1;
+    padding: 12px 10px;
+}
+
+.admin-nav a {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    text-decoration: none;
+    color: #333;
+    font-weight: 500;
+    font-size: 0.95rem;
+    border-left: 3px solid transparent;
+}
+
+.admin-nav a .material-symbols-outlined {
+    font-size: 20px;
+    color: #777;
+}
+
+.admin-nav a:hover {
+    background: rgba(27, 117, 187, 0.06);
+    color: #1B75BB;
+}
+
+.admin-nav a.is-active {
+    background: rgba(27, 117, 187, 0.1);
+    color: #1B75BB;
+    font-weight: 700;
+    border-left-color: #1B75BB;
+}
+
+.admin-nav a.is-active .material-symbols-outlined {
+    color: #1B75BB;
+}
+
+.admin-nav-group {
+    margin: 16px 12px 4px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: #999;
+}
+
+.admin-sidebar-foot {
+    padding: 14px 20px 20px;
+    border-top: 1px solid #e2e2e2;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    font-size: 0.9rem;
+}
+
+.admin-sidebar-foot a,
+.admin-sidebar-foot button {
+    color: #555;
+    text-decoration: none;
+    background: none;
+    border: none;
+    padding: 0;
+    text-align: left;
+    cursor: pointer;
+    font: inherit;
+}
+
+.admin-sidebar-foot a:hover,
+.admin-sidebar-foot button:hover {
+    color: #1B75BB;
+}
+
+.admin-main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.admin-topbar {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 24px;
+    background: rgba(255, 255, 255, 0.9);
+    border-bottom: 2px solid #1B75BB;
+    position: sticky;
+    top: 0;
+    z-index: 20;
+}
+
+.admin-menu-btn {
+    display: none;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #1B75BB;
+    padding: 4px;
+}
+
+.admin-topbar-title {
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: #1a1a1a;
+}
+
+.admin-topbar-user {
+    margin-left: auto;
+    color: #777;
+    font-size: 0.9rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 45vw;
+}
+
+.admin-scrim {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.35);
+    z-index: 40;
+    border: none;
+}
+
+@media (max-width: 900px) {
+    .admin-sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        z-index: 50;
+        transform: translateX(-100%);
+        transition: transform 0.22s ease;
+        box-shadow: 0 0 40px rgba(0, 0, 0, 0.25);
+    }
+
+    .admin-sidebar.open {
+        transform: translateX(0);
+    }
+
+    .admin-sidebar-close {
+        display: inline-flex;
+    }
+
+    .admin-menu-btn {
+        display: inline-flex;
+    }
+}
+
+@media print {
+    .admin-sidebar,
+    .admin-topbar,
+    .admin-scrim {
+        display: none !important;
+    }
+
+    .admin-layout {
+        display: block;
+    }
 }

@@ -13,26 +13,42 @@
         href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
 </head>
 
-<body class="form-page">
-    <div class="nav-container">
-        <header>
-            <div class="logo">
+<body class="form-page admin-page">
+    <div class="admin-layout">
+        <aside class="admin-sidebar" id="admin-sidebar">
+            <div class="admin-sidebar-head">
                 <img src="/assets/CGL-Logo.svg" alt="Classical Graphics Lab">
+                <button class="admin-sidebar-close" id="admin-sidebar-close" type="button" aria-label="Close menu">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
             </div>
-        </header>
-        <nav class="navbar">
-            <a href="/" class="nav-tab">Home</a>
-            <a href="/info/" class="nav-tab">Information</a>
-            <a href="/order/" class="nav-tab">Quick Order</a>
-            <a href="/admin/" class="nav-tab staff-only" hidden>Staff Tools</a>
-            <a href="/admin/orders/" class="nav-tab staff-only" hidden>Orders</a>
-            <a href="/admin/requests/" class="nav-tab staff-only" hidden>Job Requests</a>
-            <a href="/admin/items/" class="nav-tab staff-only" hidden>Item Catalog</a>
-            <a href="/admin/restock/" class="nav-tab staff-only" hidden>Restock</a>
-            <a href="/admin/storefront/" class="nav-tab staff-only" hidden>Storefront</a>
-            <a href="/admin/transactions/" class="nav-tab staff-only" hidden>Transactions</a>
-        </nav>
-    </div>
+            <nav class="admin-nav">
+                <a href="/admin/" data-title="Dashboard"><span class="material-symbols-outlined">dashboard</span> Dashboard</a>
+                <p class="admin-nav-group">Fulfillment</p>
+                <a href="/admin/orders/"><span class="material-symbols-outlined">receipt_long</span> Orders</a>
+                <a href="/admin/requests/"><span class="material-symbols-outlined">assignment</span> Job Requests</a>
+                <p class="admin-nav-group">Inventory</p>
+                <a href="/admin/items/"><span class="material-symbols-outlined">inventory_2</span> Item Catalog</a>
+                <a href="/admin/restock/"><span class="material-symbols-outlined">add_box</span> Restock</a>
+                <a href="/admin/storefront/"><span class="material-symbols-outlined">point_of_sale</span> Storefront Sale</a>
+                <p class="admin-nav-group">Records</p>
+                <a href="/admin/transactions/"><span class="material-symbols-outlined">account_balance</span> Transactions</a>
+                <a href="/admin/labels/"><span class="material-symbols-outlined">qr_code_2</span> QR Label Sheets</a>
+            </nav>
+            <div class="admin-sidebar-foot">
+                <a href="/">&larr; Public site</a>
+                <button id="admin-signout" type="button">Sign out</button>
+            </div>
+        </aside>
+
+        <div class="admin-main">
+            <header class="admin-topbar">
+                <button class="admin-menu-btn" id="admin-menu-btn" type="button" aria-label="Open menu">
+                    <span class="material-symbols-outlined">menu</span>
+                </button>
+                <span class="admin-topbar-title" id="admin-topbar-title"></span>
+                <span class="admin-topbar-user" id="admin-topbar-user"></span>
+            </header>
 
     <main class="form-container">
         <p id="loading-status" class="placeholder-text">Checking sign-in&hellip;</p>
@@ -69,6 +85,9 @@
             </button>
         </div>
     </main>
+        </div>
+    </div>
+    <div class="admin-scrim" id="admin-scrim" hidden></div>
 
     <script src="https://accounts.google.com/gsi/client" async defer onload="gisLoaded()"></script>
     <script src="/scripts/auth.js"></script>
@@ -133,7 +152,7 @@
             uuidInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); submitSale(); } });
         });
     </script>
-    <script src="/scripts/nav-auth.js"></script>
+    <script src="/scripts/admin-shell.js"></script>
 </body>
 
 </html>
