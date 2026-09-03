@@ -1,8 +1,21 @@
 const { Router } = require('express');
-const { db, randomUUID, normalizeCategory, ITEM_CATEGORIES, ITEM_SELECT, getItem } = require('../db');
+const { db, randomUUID, normalizeCategory, ITEM_CATEGORIES, ITEM_SELECT, getItem, normalizeHex } = require('../db');
 const { requireStaff } = require('../staffAuth');
 
 const router = Router();
+
+// Registers any brand-new colors in the shared palette so the order page gets a
+// swatch for them. Never overwrites an existing color — global hex edits go
+// through /api/colors. Accepts [{ name, hex }]; unknown/blank entries are skipped.
+function ensurePaletteColors(newColors) {
+    if (!Array.isArray(newColors)) return;
+    const insert = db.prepare('INSERT OR IGNORE INTO colors(name, hex, created_at) VALUES(?, ?, ?)');
+    const now = Date.now();
+    for (const c of newColors) {
+        const name = String((c && c.name) || '').trim().replace(/\s+/g, ' ');
+        if (name) insert.run(name, normalizeHex(c && c.hex) || '#cccccc', now);
+    }
+}
 
 // Resolves the sub-category for a write. Passing a null/blank id files the item
 // under no sub-category. Passing a real id pins the item's top category to that
@@ -37,8 +50,10 @@ router.get('/admin', requireStaff, (_req, res) => {
 });
 
 router.post('/', requireStaff, (req, res) => {
-    const { name, uuid, category, subcategoryId, variantColor, variantSize, priceCents, detail, startingStock, orderable } = req.body;
+    const { name, uuid, category, subcategoryId, variantColor, variantSize, priceCents, detail, startingStock, orderable, newColors } = req.body;
     if (!name) return res.status(400).json({ error: 'Missing item name' });
+
+    ensurePaletteColors(newColors);
 
     let filing;
     try {
@@ -147,8 +162,10 @@ router.patch('/:uuid', requireStaff, (req, res) => {
 // UUIDs are always auto-generated here (a shared UUID across variants makes no
 // sense). An empty colors/sizes array just means that dimension is NULL.
 router.post('/bulk', requireStaff, (req, res) => {
-    const { name, category, subcategoryId, priceCents, detail, startingStock, colors, sizes, orderable } = req.body;
+    const { name, category, subcategoryId, priceCents, detail, startingStock, colors, sizes, orderable, newColors } = req.body;
     if (!name) return res.status(400).json({ error: 'Missing item name' });
+
+    ensurePaletteColors(newColors);
 
     let filing;
     try {

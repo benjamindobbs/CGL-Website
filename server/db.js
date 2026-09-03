@@ -46,6 +46,18 @@ db.exec(`
         UNIQUE(category, name)
     );
 
+    -- Shared color palette: one hex per color name. items.variant_color stays
+    -- free text and links to a row here by name (case-insensitive) so the order
+    -- page can render a real swatch. A color with no row here falls back to a
+    -- neutral swatch. Managed from the "Colors" card in the item catalog.
+    CREATE TABLE IF NOT EXISTS colors (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        name       TEXT    NOT NULL,
+        hex        TEXT    NOT NULL DEFAULT '#cccccc',
+        created_at INTEGER NOT NULL,
+        UNIQUE(name COLLATE NOCASE)
+    );
+
     -- Shared catalog: general store merchandise and Uniforms items live in
     -- the same table, so restock/storefront-sale/order all move the same
     -- stock_qty. variant_color/variant_size are NULL for items that don't
@@ -296,10 +308,20 @@ function recordTransaction({
 // Catalog rows carry the sub-category name (not just its id) so callers never
 // have to join again. subcategory is NULL for items not filed under one.
 const ITEM_SELECT = `
-    SELECT i.*, s.name AS subcategory
+    SELECT i.*, s.name AS subcategory, c.hex AS variant_hex
     FROM items i
     LEFT JOIN subcategories s ON s.id = i.subcategory_id
+    LEFT JOIN colors c ON c.name = i.variant_color COLLATE NOCASE
 `;
+
+// Normalizes a hex color to lowercase #rrggbb. Accepts a missing leading '#' and
+// 3-digit shorthand. Returns null for anything that still isn't a valid 6-digit hex.
+function normalizeHex(raw) {
+    let s = String(raw == null ? '' : raw).trim().toLowerCase();
+    if (s && s[0] !== '#') s = `#${s}`;
+    if (/^#[0-9a-f]{3}$/.test(s)) s = `#${s[1]}${s[1]}${s[2]}${s[2]}${s[3]}${s[3]}`;
+    return /^#[0-9a-f]{6}$/.test(s) ? s : null;
+}
 
 function getItem(uuid) {
     return db.prepare(`${ITEM_SELECT} WHERE i.uuid = ?`).get(uuid);
@@ -320,6 +342,6 @@ function sweepStaleUnpaidOrders(maxAgeMs = 24 * 60 * 60 * 1000) {
 
 module.exports = {
     db, upsertUser, isStaff, applyStockDelta, recordTransaction, randomUUID,
-    ITEM_CATEGORIES, DEFAULT_CATEGORY, normalizeCategory,
+    ITEM_CATEGORIES, DEFAULT_CATEGORY, normalizeCategory, normalizeHex,
     ITEM_SELECT, getItem, sweepStaleUnpaidOrders,
 };

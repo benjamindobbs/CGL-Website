@@ -1432,6 +1432,94 @@ nav a.staff-only {
     color: #c0392b;
 }
 
+/* ---- Colors palette manager ------------------------------------------------ */
+.color-adder input[type="color"] {
+    width: 44px;
+    flex: none;
+    padding: 2px;
+    border: 2px solid #EEE;
+    border-radius: 10px;
+    background: #fff;
+    cursor: pointer;
+}
+
+.hex-text {
+    width: 92px;
+    flex: none;
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    text-transform: lowercase;
+}
+
+.color-manager-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding: 10px 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.color-manager-row:last-child {
+    border-bottom: none;
+}
+
+.color-manager-row .cm-name {
+    flex: 1;
+    min-width: 140px;
+    padding: 10px 12px;
+    border: 2px solid #EEE;
+    border-radius: 10px;
+    font-family: inherit;
+    font-size: 0.95rem;
+    color: #333;
+}
+
+.color-manager-row .cm-name:focus,
+.color-manager-row .hex-text:focus {
+    outline: none;
+    border-color: #1B75BB;
+}
+
+.color-manager-row .cm-hex {
+    width: 44px;
+    flex: none;
+    padding: 2px;
+    border: 2px solid #EEE;
+    border-radius: 10px;
+    background: #fff;
+    cursor: pointer;
+}
+
+.cm-count {
+    font-size: 0.8rem;
+    color: #888;
+    white-space: nowrap;
+}
+
+.color-manager-row .cm-delete {
+    color: #c0392b;
+}
+
+.swatch-dot {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    flex: none;
+    vertical-align: middle;
+}
+
+.chip .chip-hex {
+    width: 26px;
+    height: 20px;
+    padding: 0;
+    border: none;
+    background: none;
+    cursor: pointer;
+    vertical-align: middle;
+}
+
 /* ---- Inline item edit (Item Catalog table) ------------------------------- */
 .inactive-tag {
     font-size: 0.8rem;

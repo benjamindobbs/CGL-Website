@@ -141,4 +141,33 @@ function seedSubcategories() {
     }
 }
 
-module.exports = { seedUniforms, seedTraditionLine, seedStaff, seedSubcategories };
+// Shared color palette (see the `colors` table in db.js). Seeds the known names
+// with real hexes carried over from the pre-migration order form, then backfills
+// a neutral row for every other color already used by an item so it shows up in
+// the "Colors" manager ready for a hex. Idempotent (INSERT OR IGNORE), runs
+// every boot; staff hex/name edits are never clobbered.
+const SEED_COLORS = [
+    { name: 'White', hex: '#f5f5f5' },
+    { name: 'Black', hex: '#1a1a1a' },
+    { name: 'Asphalt', hex: '#4e5452' },
+    { name: 'Blush', hex: '#fec5e5' },
+    { name: 'Bone', hex: '#e3dac9' },
+    { name: 'Arctic', hex: '#89ccd4' },
+];
+
+function seedColors() {
+    const insert = db.prepare(
+        'INSERT OR IGNORE INTO colors(name, hex, created_at) VALUES(?, ?, ?)'
+    );
+    const now = Date.now();
+    for (const c of SEED_COLORS) insert.run(c.name, c.hex, now);
+
+    db.prepare(`
+        INSERT OR IGNORE INTO colors(name, hex, created_at)
+        SELECT DISTINCT variant_color, '#cccccc', ?
+        FROM items
+        WHERE variant_color IS NOT NULL AND TRIM(variant_color) <> ''
+    `).run(now);
+}
+
+module.exports = { seedUniforms, seedTraditionLine, seedStaff, seedSubcategories, seedColors };

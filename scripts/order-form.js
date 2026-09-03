@@ -86,10 +86,14 @@ function updateColors() {
     if (!product) return;
 
     Object.keys(product).forEach((color) => {
+        // Every item under this color carries the same palette hex (joined in
+        // server-side); fall back to a neutral swatch if the color has no hex.
+        const anyVariant = Object.values(product[color])[0];
+        const hex = (anyVariant && anyVariant.variant_hex) || '#cccccc';
         const swatch = document.createElement('div');
         swatch.className = 'swatch-item';
         swatch.innerHTML = `
-            <div class="color-circle" style="background-color: ${color === 'White' ? '#F5F5F5' : '#000000'}; border: 1px solid #ccc;"></div>
+            <div class="color-circle" style="background-color: ${hex}; border: 1px solid #ccc;"></div>
             <span>${color}</span>
         `;
         swatch.onclick = function () {

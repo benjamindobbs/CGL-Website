@@ -136,6 +136,25 @@
                 <div id="subcat-list"></div>
             </div>
 
+            <div class="config-card" style="margin-top:40px;">
+                <h2>Colors</h2>
+                <p class="field-note" style="margin-bottom:16px;">
+                    The swatch shown on the order page for each color name. Editing a color
+                    here changes it for every item that uses that name.
+                </p>
+                <div class="form-group">
+                    <label for="new-color-name">Add color</label>
+                    <div class="color-adder">
+                        <input type="text" id="new-color-name" placeholder="e.g. Forest Green" autocomplete="off">
+                        <input type="color" id="new-color-hex" value="#cccccc" aria-label="Pick color">
+                        <input type="text" id="new-color-hex-text" class="hex-text" value="#cccccc" spellcheck="false" aria-label="Hex code">
+                        <button type="button" id="add-color-manager-btn" class="secondary-btn">Add</button>
+                    </div>
+                    <p id="color-manager-result" class="field-note" style="display:none;font-weight:600;"></p>
+                </div>
+                <div id="color-list"></div>
+            </div>
+
             <div class="labels-controls" style="margin-top:40px;">
                 <h2 style="margin:0;">Catalog</h2>
                 <a href="/admin/labels/" class="link-btn" style="font-size:0.95rem;">Print QR label sheets &rarr;</a>
@@ -550,6 +569,7 @@
                 if (res.ok) {
                     editingUuid = null;
                     await loadSubcategories();
+                    await loadColors();
                     await loadItems();
                 } else {
                     resultEl.style.display = '';
@@ -573,7 +593,8 @@
             });
 
             const SIZES = ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL'];
-            const colors = [];
+            const colors = [];   // [{ name, hex, isNew }] for the Add-Item panel
+            let palette = [];     // [{ id, name, hex, item_count }] shared color palette
 
             // "forest green" / "NAVY blue" -> "Forest Green" / "Navy Blue"
             function normalizeColor(raw) {
@@ -583,6 +604,137 @@
                     .toLowerCase()
                     .replace(/(^|[\s\-/])([a-z])/g, (_, sep, ch) => sep + ch.toUpperCase());
             }
+
+            const HEX_RE = /^#[0-9a-fA-F]{6}$/;
+            const paletteColor = (name) =>
+                palette.find((p) => p.name.toLowerCase() === String(name).toLowerCase());
+
+            // ---- Colors palette manager -------------------------------------
+            async function loadColors() {
+                try {
+                    const res = await authFetch('/api/colors');
+                    palette = res.ok ? await res.json() : [];
+                } catch (err) {
+                    console.error('Failed to load colors:', err);
+                    palette = [];
+                }
+                renderColorManager();
+                renderColorChips();
+            }
+
+            function renderColorManager() {
+                const wrap = $('color-list');
+                if (!palette.length) {
+                    wrap.innerHTML = '<p class="placeholder-text" style="margin:0;">No colors yet.</p>';
+                    return;
+                }
+                wrap.innerHTML = palette.map((c) => `
+                    <div class="color-manager-row" data-id="${c.id}">
+                        <span class="swatch-dot" style="background:${esc(c.hex)}"></span>
+                        <input type="text" class="cm-name" value="${esc(c.name)}" aria-label="Color name">
+                        <input type="color" class="cm-hex" value="${esc(c.hex)}" aria-label="Pick color">
+                        <input type="text" class="cm-hex-text hex-text" value="${esc(c.hex)}" spellcheck="false" aria-label="Hex code">
+                        <span class="cm-count">${c.item_count} item${c.item_count === 1 ? '' : 's'}</span>
+                        <button type="button" class="link-btn cm-save">Save</button>
+                        <button type="button" class="link-btn cm-delete">Delete</button>
+                    </div>
+                `).join('');
+            }
+
+            // Keep a <input type=color> and its sibling hex text field in sync,
+            // and repaint the row/add-row swatch dot.
+            function syncHexPair(scope, from) {
+                const picker = scope.querySelector('input[type="color"]');
+                const text = scope.querySelector('.hex-text');
+                const dot = scope.querySelector('.swatch-dot');
+                if (from === 'picker') {
+                    text.value = picker.value;
+                } else if (HEX_RE.test(text.value.trim())) {
+                    picker.value = text.value.trim().toLowerCase();
+                }
+                if (dot && HEX_RE.test(picker.value)) dot.style.background = picker.value;
+            }
+
+            $('color-list').addEventListener('input', (e) => {
+                const row = e.target.closest('.color-manager-row');
+                if (!row) return;
+                if (e.target.classList.contains('cm-hex')) syncHexPair(row, 'picker');
+                else if (e.target.classList.contains('cm-hex-text')) syncHexPair(row, 'text');
+            });
+
+            $('color-list').addEventListener('click', async (e) => {
+                const row = e.target.closest('.color-manager-row');
+                if (!row) return;
+                const id = row.dataset.id;
+
+                if (e.target.classList.contains('cm-save')) {
+                    const res = await authFetch(`/api/colors/${id}`, {
+                        method: 'PATCH',
+                        body: JSON.stringify({
+                            name: row.querySelector('.cm-name').value.trim(),
+                            hex: row.querySelector('.cm-hex-text').value.trim(),
+                        }),
+                    });
+                    if (!res.ok) {
+                        const data = await res.json().catch(() => ({}));
+                        alert(data.error || 'Failed to save color.');
+                        return;
+                    }
+                    await loadColors();
+                    await loadItems();
+                } else if (e.target.classList.contains('cm-delete')) {
+                    const c = palette.find((x) => String(x.id) === String(id));
+                    const count = c ? c.item_count : 0;
+                    const label = c ? c.name : 'this color';
+                    if (!confirm(count
+                        ? `Delete "${label}"? ${count} item${count === 1 ? '' : 's'} will show a plain grey swatch until it's re-added.`
+                        : `Delete "${label}"?`)) return;
+                    const res = await authFetch(`/api/colors/${id}`, { method: 'DELETE' });
+                    if (!res.ok) {
+                        const data = await res.json().catch(() => ({}));
+                        alert(data.error || 'Failed to delete color.');
+                        return;
+                    }
+                    await loadColors();
+                    await loadItems();
+                }
+            });
+
+            const addColorRow = () => $('add-color-manager-btn').closest('.color-adder');
+            addColorRow().addEventListener('input', (e) => {
+                if (e.target.id === 'new-color-hex') { $('new-color-hex-text').value = $('new-color-hex').value; }
+                else if (e.target.id === 'new-color-hex-text' && HEX_RE.test($('new-color-hex-text').value.trim())) {
+                    $('new-color-hex').value = $('new-color-hex-text').value.trim().toLowerCase();
+                }
+            });
+
+            $('add-color-manager-btn').addEventListener('click', async () => {
+                const nameEl = $('new-color-name');
+                const resultEl = $('color-manager-result');
+                const name = normalizeColor(nameEl.value);
+                if (!name) { nameEl.focus(); return; }
+                const res = await authFetch('/api/colors', {
+                    method: 'POST',
+                    body: JSON.stringify({ name, hex: $('new-color-hex-text').value.trim() }),
+                });
+                const data = await res.json().catch(() => ({}));
+                resultEl.style.display = '';
+                if (res.ok) {
+                    resultEl.style.color = '#27ae60';
+                    resultEl.textContent = `Added "${data.name}".`;
+                    nameEl.value = '';
+                    $('new-color-hex').value = '#cccccc';
+                    $('new-color-hex-text').value = '#cccccc';
+                    await loadColors();
+                } else {
+                    resultEl.style.color = '#c0392b';
+                    resultEl.textContent = data.error || 'Failed to add color.';
+                }
+            });
+
+            $('new-color-name').addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') { e.preventDefault(); $('add-color-manager-btn').click(); }
+            });
 
             $('size-checkbox-grid').innerHTML = SIZES.map((s) => `
                 <label class="checkbox-item">
@@ -597,7 +749,13 @@
             }
 
             function enteredColors() {
-                return $('toggle-colors').checked ? colors.slice() : [];
+                return $('toggle-colors').checked ? colors.map((c) => c.name) : [];
+            }
+
+            function enteredNewColors() {
+                return $('toggle-colors').checked
+                    ? colors.filter((c) => c.isNew).map(({ name, hex }) => ({ name, hex }))
+                    : [];
             }
 
             function bulkActive() {
@@ -629,22 +787,40 @@
 
             function renderColorChips() {
                 const list = $('color-chip-list');
+                if (!list) return;
                 list.innerHTML = colors.map((c, i) => `
-                    <span class="chip">${c}<button type="button" data-i="${i}" aria-label="Remove ${c}">&times;</button></span>
+                    <span class="chip">
+                        <span class="swatch-dot" style="background:${esc(c.hex)}"></span>${esc(c.name)}
+                        ${c.isNew ? `<input type="color" class="chip-hex" data-i="${i}" value="${esc(c.hex)}" aria-label="Pick ${esc(c.name)} color">` : ''}
+                        <button type="button" class="chip-remove" data-i="${i}" aria-label="Remove ${esc(c.name)}">&times;</button>
+                    </span>
                 `).join('');
-                list.querySelectorAll('button').forEach((btn) => {
-                    btn.addEventListener('click', () => {
-                        colors.splice(Number(btn.dataset.i), 1);
-                        renderColorChips();
-                        updateVariantSummary();
-                    });
-                });
             }
+
+            $('color-chip-list').addEventListener('click', (e) => {
+                if (!e.target.classList.contains('chip-remove')) return;
+                colors.splice(Number(e.target.dataset.i), 1);
+                renderColorChips();
+                updateVariantSummary();
+            });
+            $('color-chip-list').addEventListener('input', (e) => {
+                if (!e.target.classList.contains('chip-hex')) return;
+                const chip = colors[Number(e.target.dataset.i)];
+                if (!chip) return;
+                chip.hex = e.target.value;
+                const dot = e.target.closest('.chip').querySelector('.swatch-dot');
+                if (dot) dot.style.background = e.target.value;
+            });
 
             function addColorFromInput() {
                 const input = $('color-input');
-                const value = normalizeColor(input.value);
-                if (value && !colors.some((c) => c.toLowerCase() === value.toLowerCase())) colors.push(value);
+                const name = normalizeColor(input.value);
+                if (name && !colors.some((c) => c.name.toLowerCase() === name.toLowerCase())) {
+                    const known = paletteColor(name);
+                    colors.push(known
+                        ? { name: known.name, hex: known.hex, isNew: false }
+                        : { name, hex: '#cccccc', isNew: true });
+                }
                 input.value = '';
                 input.focus();
                 renderColorChips();
@@ -689,6 +865,7 @@
                 const startingStock = parseInt($('item-stock').value || '0');
 
                 const useColors = enteredColors();
+                const useNewColors = enteredNewColors();
                 const useSizes = selectedSizes();
                 const bulk = bulkActive() && (useColors.length > 0 || useSizes.length > 0);
 
@@ -696,12 +873,12 @@
                 if (bulk) {
                     res = await authFetch('/api/items/bulk', {
                         method: 'POST',
-                        body: JSON.stringify({ name, category, subcategoryId, orderable, priceCents, startingStock, colors: useColors, sizes: useSizes }),
+                        body: JSON.stringify({ name, category, subcategoryId, orderable, priceCents, startingStock, colors: useColors, sizes: useSizes, newColors: useNewColors }),
                     });
                 } else {
                     res = await authFetch('/api/items', {
                         method: 'POST',
-                        body: JSON.stringify({ name, category, subcategoryId, orderable, uuid: $('item-uuid').value.trim(), priceCents, startingStock }),
+                        body: JSON.stringify({ name, category, subcategoryId, orderable, uuid: $('item-uuid').value.trim(), priceCents, startingStock, newColors: useNewColors }),
                     });
                 }
                 const data = await res.json();
@@ -717,6 +894,15 @@
                     $('item-price').value = '0';
                     $('item-stock').value = '0';
                     loadItems();
+                    // New colors are now in the palette — refresh so the chips
+                    // stop offering a picker for them.
+                    loadColors().then(() => {
+                        colors.forEach((c) => {
+                            const p = paletteColor(c.name);
+                            if (p) { c.isNew = false; c.hex = p.hex; }
+                        });
+                        renderColorChips();
+                    });
                 } else {
                     resultEl.style.color = '#c0392b';
                     resultEl.innerText = data.error || 'Failed to add item.';
@@ -726,6 +912,7 @@
             renderColorChips();
             updateUuidLock();
             loadSubcategories();
+            loadColors();
             loadItems();
         });
     </script>
