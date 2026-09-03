@@ -8,7 +8,10 @@
 const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
 const FROM = process.env.MAIL_FROM || 'CGL Requests <noreply-requests@madein.school>';
 const DEFAULT_REPLY_TO = process.env.MAIL_REPLY_TO || 'contact@madein.school';
-const LAB_INBOX = process.env.LAB_INBOX || 'contact@madein.school';
+// One or more real, monitored mailboxes (comma-separated). These receive job-request
+// notifications, so don't point them at an address whose MX is Resend inbound.
+const LAB_INBOX = (process.env.LAB_INBOX || 'contact@madein.school')
+    .split(',').map((s) => s.trim()).filter(Boolean);
 
 function isMailConfigured() {
     return Boolean(RESEND_API_KEY);
