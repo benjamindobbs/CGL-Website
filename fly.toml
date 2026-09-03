@@ -24,6 +24,17 @@
 # Local dev:
 #   stripe listen --forward-to localhost:8080/api/payments/webhook
 #   (use the whsec_ it prints, plus PUBLIC_BASE_URL=http://localhost:8080)
+#
+# Job-request emails (Resend). Sending domain madein.school is verified in Resend.
+#   fly secrets set -a cgl-website RESEND_API_KEY=re_xxx
+# Without it, isMailConfigured() is false: requests still save, the send is just
+# skipped with a logged warning. From/reply-to can be overridden with the
+# MAIL_FROM / MAIL_REPLY_TO / LAB_INBOX secrets (defaults are fine).
+#
+# Job-request artwork storage (Tigris object storage). Provision once:
+#   fly storage create        # pick this app; it injects the AWS_* + BUCKET_NAME secrets
+# Without those, isStorageConfigured() is false: text-only requests still save,
+# but a request WITH files attached is refused with a 503.
 
 app = 'cgl-website'
 primary_region = 'ams'

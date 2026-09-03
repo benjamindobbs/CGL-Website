@@ -68,4 +68,17 @@ async function requireAuth(req, res, next) {
     next();
 }
 
-module.exports = { requireAuth, ALLOWED_DOMAINS };
+// Gate for the district-staff self-service tools (job requests, jersey rosters):
+// any signed-in @hartfordschools.org account, but NOT student accounts. Distinct
+// from requireStaff, which is the lab's own staff whitelist.
+function requireDistrictStaff(req, res, next) {
+    requireAuth(req, res, (err) => {
+        if (err) return next(err);
+        if (!req.userEmail || !req.userEmail.toLowerCase().endsWith('@hartfordschools.org')) {
+            return res.status(403).json({ error: 'A hartfordschools.org staff account is required (student accounts cannot use this tool).' });
+        }
+        next();
+    });
+}
+
+module.exports = { requireAuth, requireDistrictStaff, ALLOWED_DOMAINS };

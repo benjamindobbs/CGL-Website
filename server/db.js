@@ -58,6 +58,66 @@ db.exec(`
         UNIQUE(name COLLATE NOCASE)
     );
 
+    -- Print-job requests submitted by district staff at other buildings
+    -- (routes/requests.js). Separate from the store orders table: no payment, no
+    -- stock, tracked by the lab through the status column. Artwork lives in object
+    -- storage (server/storage.js); job_request_files holds one row per file.
+    CREATE TABLE IF NOT EXISTS job_requests (
+        id             INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_key       TEXT    NOT NULL,
+        requester_name TEXT    NOT NULL,
+        email          TEXT    NOT NULL,
+        job_name       TEXT    NOT NULL,
+        building       TEXT    NOT NULL DEFAULT '',
+        phone          TEXT    NOT NULL DEFAULT '',
+        category       TEXT    NOT NULL,
+        quantity       TEXT    NOT NULL DEFAULT '',
+        needed_by      TEXT    NOT NULL DEFAULT '',
+        description    TEXT    NOT NULL DEFAULT '',
+        status         TEXT    NOT NULL DEFAULT 'new'
+                        CHECK(status IN ('new','in_progress','quoted','complete','cancelled')),
+        created_at     INTEGER NOT NULL,
+        updated_at     INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_job_requests_status ON job_requests(status);
+
+    CREATE TABLE IF NOT EXISTS job_request_files (
+        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+        request_id   INTEGER NOT NULL,
+        object_key   TEXT    NOT NULL,
+        file_name    TEXT    NOT NULL,
+        content_type TEXT    NOT NULL DEFAULT '',
+        size_bytes   INTEGER NOT NULL DEFAULT 0,
+        created_at   INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_job_request_files_request ON job_request_files(request_id);
+
+    -- Team jersey rosters (routes/jerseys.js) — a QoL builder for coaches, no
+    -- payment. One jersey_jobs row per roster (owned by the submitting coach's
+    -- user_key), jersey_players holds the table rows.
+    CREATE TABLE IF NOT EXISTS jersey_jobs (
+        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_key     TEXT    NOT NULL,
+        email        TEXT    NOT NULL,
+        job_name     TEXT    NOT NULL,
+        jersey_style TEXT    NOT NULL CHECK(jersey_style IN ('male','female')),
+        created_at   INTEGER NOT NULL,
+        updated_at   INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_jersey_jobs_user ON jersey_jobs(user_key);
+
+    CREATE TABLE IF NOT EXISTS jersey_players (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        job_id     INTEGER NOT NULL,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        name       TEXT    NOT NULL,
+        number     TEXT    NOT NULL DEFAULT '',
+        size       TEXT    NOT NULL DEFAULT '',
+        color      TEXT    NOT NULL DEFAULT '',
+        info       TEXT    NOT NULL DEFAULT ''
+    );
+    CREATE INDEX IF NOT EXISTS idx_jersey_players_job ON jersey_players(job_id);
+
     -- Shared catalog: general store merchandise and Uniforms items live in
     -- the same table, so restock/storefront-sale/order all move the same
     -- stock_qty. variant_color/variant_size are NULL for items that don't
@@ -169,6 +229,17 @@ db.exec(`
 // consolidated into it by migration v1 below).
 const ITEM_CATEGORIES = ['School Store', 'Athletics', 'GFX'];
 const DEFAULT_CATEGORY = 'GFX';
+
+// Fixed choice lists for the district-staff self-service tools.
+const JOB_CATEGORIES = [
+    'Screen Printing',
+    'Embroidery',
+    'DTF Transfer (Full Color)',
+    'Banner',
+    'Stickers, Decals & Signs',
+    'Not sure yet',
+];
+const JERSEY_SIZES = ['S', 'M', 'L', 'XL', '2XL', '3XL', '4XL'];
 
 function normalizeCategory(value) {
     return ITEM_CATEGORIES.includes(value) ? value : DEFAULT_CATEGORY;
@@ -343,5 +414,6 @@ function sweepStaleUnpaidOrders(maxAgeMs = 24 * 60 * 60 * 1000) {
 module.exports = {
     db, upsertUser, isStaff, applyStockDelta, recordTransaction, randomUUID,
     ITEM_CATEGORIES, DEFAULT_CATEGORY, normalizeCategory, normalizeHex,
+    JOB_CATEGORIES, JERSEY_SIZES,
     ITEM_SELECT, getItem, sweepStaleUnpaidOrders,
 };

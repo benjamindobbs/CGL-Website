@@ -1863,3 +1863,252 @@ nav a.staff-only {
         padding: 9px 8px;
     }
 }
+
+/* ---- Textarea in the standard form group -------------------------------- */
+.form-group textarea {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 14px 18px;
+    background-color: #FFFFFF;
+    border: 2px solid #EEE;
+    border-radius: 12px;
+    font-family: inherit;
+    font-size: 1rem;
+    color: #333;
+    resize: vertical;
+}
+
+.form-group textarea:focus {
+    outline: none;
+    border-color: #1B75BB;
+    box-shadow: 0 0 0 4px rgba(27, 117, 187, 0.15);
+}
+
+/* ---- Info "i" popover (scripts/info-tip.js) --------------------------------- */
+.info-tip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    width: 20px;
+    height: 20px;
+    margin-left: 6px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: #E7EEF5;
+    color: #1B75BB;
+    cursor: pointer;
+    vertical-align: middle;
+}
+
+.info-tip .material-symbols-outlined {
+    font-size: 16px;
+}
+
+.info-tip-pop {
+    display: none;
+    position: absolute;
+    left: 50%;
+    top: calc(100% + 8px);
+    transform: translateX(-50%);
+    width: max-content;
+    max-width: 260px;
+    padding: 10px 12px;
+    background: #222;
+    color: #fff;
+    font-size: 0.8rem;
+    font-weight: 400;
+    line-height: 1.35;
+    text-align: left;
+    border-radius: 8px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
+    z-index: 50;
+}
+
+.info-tip.open .info-tip-pop {
+    display: block;
+}
+
+/* ---- Tab bar (admin/orders) ---------------------------------------------- */
+.tab-bar {
+    display: flex;
+    gap: 6px;
+    border-bottom: 2px solid #EEE;
+    margin: 8px 0 24px;
+}
+
+.tab-bar .tab {
+    padding: 10px 18px;
+    border: none;
+    background: none;
+    font-family: inherit;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #888;
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    margin-bottom: -2px;
+}
+
+.tab-bar .tab.active {
+    color: #1B75BB;
+    border-bottom-color: #1B75BB;
+}
+
+/* ---- Jersey roster editor (jerseys/) ----------------------------------- */
+.segmented {
+    display: inline-flex;
+    border: 2px solid #EEE;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.segmented label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 16px;
+    font-weight: 600;
+    color: #444;
+    cursor: pointer;
+}
+
+.segmented label:first-child {
+    border-right: 2px solid #EEE;
+}
+
+.segmented input {
+    accent-color: #1B75BB;
+}
+
+.roster-table-wrap {
+    overflow-x: auto;
+    margin: 8px 0 12px;
+}
+
+.roster-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 640px;
+}
+
+.roster-table th {
+    text-align: left;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #666;
+    padding: 6px 8px;
+}
+
+.roster-table td {
+    padding: 4px 6px;
+}
+
+.roster-table input,
+.roster-table select {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 8px 10px;
+    border: 2px solid #EEE;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 0.9rem;
+    color: #333;
+    background: #fff;
+}
+
+.roster-table input:focus,
+.roster-table select:focus {
+    outline: none;
+    border-color: #1B75BB;
+}
+
+.roster-table .col-number {
+    max-width: 90px;
+}
+
+.roster-table .row-remove {
+    color: #c0392b;
+    font-size: 1.2rem;
+    line-height: 1;
+}
+
+.roster-actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.paste-block {
+    margin: 18px 0 4px;
+    border: 2px solid #EEE;
+    border-radius: 10px;
+    padding: 12px 14px;
+}
+
+.paste-block summary {
+    cursor: pointer;
+    font-weight: 600;
+    color: #1B75BB;
+}
+
+.paste-block textarea {
+    width: 100%;
+    box-sizing: border-box;
+    margin-top: 10px;
+    padding: 10px 12px;
+    border: 2px solid #EEE;
+    border-radius: 8px;
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size: 0.85rem;
+    resize: vertical;
+}
+
+.roster-row {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 10px 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.roster-row:last-child {
+    border-bottom: none;
+}
+
+.roster-row .roster-open {
+    font-size: 1rem;
+    text-align: left;
+}
+
+#tab-jerseys .j-detail > td {
+    background: #FafBfC;
+    padding: 8px;
+}
+
+/* ---- District-staff entry points (home + info) ------------------------- */
+.staff-shortcuts {
+    font-size: 0.9rem;
+    opacity: 0.85;
+}
+
+.staff-services {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 40px 5% 60px;
+    text-align: center;
+}
+
+.staff-services h2 {
+    margin-bottom: 8px;
+}
+
+.staff-services-links {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-top: 20px;
+}

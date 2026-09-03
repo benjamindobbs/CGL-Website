@@ -90,6 +90,16 @@ function authFetch(path, options = {}) {
     });
 }
 
+// For multipart/form-data uploads: send the auth header but let the browser set
+// Content-Type (with its boundary). Pass a FormData as the body.
+function authFetchForm(path, formData, method = 'POST') {
+    return fetch(path, {
+        method,
+        body: formData,
+        headers: { 'Authorization': 'Bearer ' + sessionToken },
+    });
+}
+
 async function refreshSession() {
     if (!sessionToken) {
         currentSession = null;

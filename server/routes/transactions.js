@@ -1,6 +1,7 @@
 const { Router } = require('express');
 const { db } = require('../db');
 const { requireStaff } = require('../staffAuth');
+const { csvDocument } = require('../csv');
 
 const router = Router();
 router.use(requireStaff);
@@ -68,13 +69,6 @@ function signedDollars(row) {
     return (cents / 100).toFixed(2);
 }
 
-// RFC-4180 field: wrap in quotes and double any embedded quote when the value
-// contains a comma, quote, or newline.
-function csvField(value) {
-    const s = String(value ?? '');
-    return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-}
-
 const CSV_HEADERS = ['Posted Date', 'Type', 'Vendor', 'Amount', 'Account', 'Notes'];
 
 router.get('/', (req, res) => {
@@ -83,19 +77,14 @@ router.get('/', (req, res) => {
 
 router.get('/export.csv', (req, res) => {
     const rows = queryTransactions(req.query);
-    const lines = [CSV_HEADERS.join(',')];
-    for (const t of rows) {
-        lines.push([
-            etDate(t.posted_at),
-            t.type === 'withdrawal' ? 'withdrawal' : 'deposit',
-            t.vendor,
-            signedDollars(t),
-            t.account,
-            t.notes,
-        ].map(csvField).join(','));
-    }
-    // Excel opens UTF-8 CSV correctly only with a BOM.
-    const body = '﻿' + lines.join('\r\n') + '\r\n';
+    const body = csvDocument(CSV_HEADERS, rows.map((t) => [
+        etDate(t.posted_at),
+        t.type === 'withdrawal' ? 'withdrawal' : 'deposit',
+        t.vendor,
+        signedDollars(t),
+        t.account,
+        t.notes,
+    ]));
 
     const stamp = etDate(Date.now());
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');

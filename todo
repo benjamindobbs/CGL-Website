@@ -1,30 +1,17 @@
-Build a contact/request form for other schools to request jobs:
+Built: job-request form (/request/) + team jersey roster tool (/jerseys/), both
+for hartfordschools.org staff, linked from the homepage and Info page.
+- Job requests: server/routes/requests.js -> job_requests table, emails the lab
+  via Resend, artwork in Tigris. Lab view: /admin/requests/ (status + CSV).
+- Jersey rosters: server/routes/jerseys.js -> jersey_jobs/jersey_players.
+  Coaches revise via "My Rosters" on /jerseys/. Lab view: Jersey Rosters tab on
+  /admin/orders/ (per-roster CSV).
 
--Account must be hartfordschools.org, not students.hartfordschools.org
--auto fill email
--request name
--dropdown category request with helper "i" symbol + popup:
-    -Screen Printing
-        -Best for large volume garment decoration with a limited color pallete
-    -Emboidery
-        -Ideal for polos, quarter zips, hats and more
-    -DTF Transfer (Full Color)
-        -Full color high resolution heat transfers, ideal for jobs with name plates or numbers
-    -Banner
-        -Up to 54" wide and as long as you need! Full color vinyl banner for indoor/outdoor. We can add gromets too 
-    -Stickers, Decals, Signs
-        -Custom shaped vinyl stickers, small or large, we offer all sorts of medias from vehicle decals to classroom windows and everything in between
-    -I'm not sure
-        - If you don't know what process you need our team of students will help you figure out what's best for your needs.
--Description of items to be requested
+To finish going live:
+  1. fly secrets set RESEND_API_KEY=re_xxx        (verify madein.school in Resend first)
+  2. fly storage create                          (injects AWS_* + BUCKET_NAME for Tigris)
+  3. Deploy. Without 1/2 the tools still work minus email / file uploads.
 
-I would also like to build a team jersey order generator:
-Users will select if they want Male or Female Jerseys add an "i" icon with the helper text "Male style jerseys have the name plate above the number, female jerseys have the name plate below the number"
-Require the user to supply a name for the job as well with the placeholder text "Classical Spring Softball 2026"
-Allow user to fill out information in a table with the following headers, they should be able to add lines for each player
-
-Name on Jersey, Size, Color, Additional info
-
-Name and Size should be required, color and additional info are optional
-
-This data will need to be exportable as a csv from an admin view. The best place for this may be a sub tab under orders. 
+Still open / possible follow-ups:
+  - Let a coach delete their own roster from /jerseys/ (admin can already delete).
+  - Confirm sales-tax handling for store orders with the 501(c)(3) treasurer.
+  - Order-status email notifications; partial refunds.

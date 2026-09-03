@@ -27,6 +27,8 @@ app.use('/api/inventory',     require('./routes/inventory'));
 app.use('/api/orders',        require('./routes/orders'));
 app.use('/api/transactions',  require('./routes/transactions'));
 app.use('/api/reports',       require('./routes/reports'));
+app.use('/api/requests',      require('./routes/requests'));
+app.use('/api/jerseys',       require('./routes/jerseys'));
 
 app.use(express.static(path.join(__dirname, '..')));
 

@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Job Requests</title>
+
+    <link rel="icon" type="image/x-icon" href="/assets/favicon.ico">
+    <link rel="stylesheet" href="/main.css">
+    <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+</head>
+
+<body class="form-page">
+    <div class="nav-container">
+        <header>
+            <div class="logo">
+                <img src="/assets/CGL-Logo.svg" alt="Classical Graphics Lab">
+            </div>
+        </header>
+        <nav class="navbar">
+            <a href="/" class="nav-tab">Home</a>
+            <a href="/info/" class="nav-tab">Information</a>
+            <a href="/order/" class="nav-tab">Quick Order</a>
+            <a href="/admin/" class="nav-tab staff-only" hidden>Staff Tools</a>
+            <a href="/admin/orders/" class="nav-tab staff-only" hidden>Orders</a>
+            <a href="/admin/requests/" class="nav-tab staff-only" hidden>Job Requests</a>
+            <a href="/admin/items/" class="nav-tab staff-only" hidden>Item Catalog</a>
+            <a href="/admin/restock/" class="nav-tab staff-only" hidden>Restock</a>
+            <a href="/admin/storefront/" class="nav-tab staff-only" hidden>Storefront</a>
+            <a href="/admin/transactions/" class="nav-tab staff-only" hidden>Transactions</a>
+        </nav>
+    </div>
+
+    <main class="staff-container">
+        <p id="loading-status" class="placeholder-text">Checking sign-in&hellip;</p>
+
+        <div id="staff-ui" style="display:none;">
+            <h1>Job Requests</h1>
+
+            <div class="labels-controls">
+                <div class="form-group" style="max-width:220px;margin:0;">
+                    <label for="status-filter">Filter by Status</label>
+                    <select id="status-filter">
+                        <option value="">All</option>
+                        <option value="new">New</option>
+                        <option value="in_progress">In Progress</option>
+                        <option value="quoted">Quoted</option>
+                        <option value="complete">Complete</option>
+                        <option value="cancelled">Cancelled</option>
+                    </select>
+                </div>
+                <button type="button" id="csv-btn" class="submit-btn" style="width:auto;">
+                    <span class="material-symbols-outlined">download</span> Download CSV
+                </button>
+            </div>
+
+            <div style="overflow-x:auto;">
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>Submitted</th>
+                            <th>Requester</th>
+                            <th>Job &amp; Description</th>
+                            <th>Building</th>
+                            <th>Phone</th>
+                            <th>Process</th>
+                            <th>Qty</th>
+                            <th>Needed By</th>
+                            <th>Artwork</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="requests-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <script src="https://accounts.google.com/gsi/client" async defer onload="gisLoaded()"></script>
+    <script src="/scripts/auth.js"></script>
+    <script src="/scripts/staff-guard.js"></script>
+    <script>
+        requireStaffSession(() => {
+            const $ = (id) => document.getElementById(id);
+            const STATUSES = ['new', 'in_progress', 'quoted', 'complete', 'cancelled'];
+            const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => (
+                { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]
+            ));
+
+            async function updateStatus(id, status) {
+                const res = await authFetch(`/api/requests/${id}`, {
+                    method: 'PATCH',
+                    body: JSON.stringify({ status }),
+                });
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    alert(err.error || 'Could not update the request.');
+                }
+                load();
+            }
+            window.updateStatus = updateStatus;
+
+            function fileLinks(files) {
+                if (!files || !files.length) return '—';
+                return files.map((f) => f.downloadUrl
+                    ? `<a href="${esc(f.downloadUrl)}" target="_blank" rel="noopener">${esc(f.file_name)}</a>`
+                    : esc(f.file_name)
+                ).join('<br>');
+            }
+
+            async function load() {
+                const filter = $('status-filter').value;
+                const res = await authFetch(`/api/requests${filter ? `?status=${filter}` : ''}`);
+                const rows = await res.json();
+                const tbody = $('requests-tbody');
+                tbody.innerHTML = rows.map((r) => {
+                    const statusOptions = STATUSES.map((s) =>
+                        `<option value="${s}" ${s === r.status ? 'selected' : ''}>${s.replace('_', ' ')}</option>`
+                    ).join('');
+                    return `
+                        <tr>
+                            <td>${new Date(r.created_at).toLocaleString()}</td>
+                            <td>${esc(r.requester_name)}<br><small>${esc(r.email)}</small></td>
+                            <td><strong>${esc(r.job_name)}</strong>${r.description ? `<br><small>${esc(r.description)}</small>` : ''}</td>
+                            <td>${esc(r.building || '—')}</td>
+                            <td>${esc(r.phone || '—')}</td>
+                            <td>${esc(r.category)}</td>
+                            <td>${esc(r.quantity || '—')}</td>
+                            <td>${esc(r.needed_by || '—')}</td>
+                            <td>${fileLinks(r.files)}</td>
+                            <td><select onchange="updateStatus(${r.id}, this.value)">${statusOptions}</select></td>
+                        </tr>
+                    `;
+                }).join('') || '<tr><td colspan="10" class="placeholder-text">No requests yet.</td></tr>';
+            }
+
+            $('csv-btn').addEventListener('click', async () => {
+                const res = await authFetch('/api/requests/export.csv');
+                if (!res.ok) { alert('Could not download CSV.'); return; }
+                const blob = await res.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `job-requests-${new Date().toISOString().slice(0, 10)}.csv`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                URL.revokeObjectURL(url);
+            });
+
+            $('status-filter').addEventListener('change', load);
+            load();
+        });
+    </script>
+    <script src="/scripts/nav-auth.js"></script>
+</body>
+
+</html>
