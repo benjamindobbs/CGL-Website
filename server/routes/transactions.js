@@ -49,7 +49,7 @@ function queryTransactions({ from, to, account }) {
     if (account) { where.push('account = ?'); params.push(account); }
 
     const sql = `
-        SELECT id, posted_at, type, vendor, amount_cents, account, notes, source, ref_order_id
+        SELECT id, posted_at, type, vendor, amount_cents, tax_cents, account, notes, source, ref_order_id
         FROM transactions
         ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
         ORDER BY posted_at DESC, id DESC
@@ -63,13 +63,15 @@ function etDate(ms) {
 }
 
 // Signed dollars: deposits positive, withdrawals negative. No currency symbol
-// so spreadsheets treat it as a number.
-function signedDollars(row) {
-    const cents = row.type === 'withdrawal' ? -row.amount_cents : row.amount_cents;
-    return (cents / 100).toFixed(2);
+// so spreadsheets treat it as a number. `cents` picks which column.
+function signedDollars(row, cents = row.amount_cents) {
+    const signed = row.type === 'withdrawal' ? -cents : cents;
+    return (signed / 100).toFixed(2);
 }
 
-const CSV_HEADERS = ['Posted Date', 'Type', 'Vendor', 'Amount', 'Account', 'Notes'];
+// Amount is the gross (tax-inclusive) money moved; Tax is the CT sales tax
+// portion inside it; Net = Amount - Tax is the revenue.
+const CSV_HEADERS = ['Posted Date', 'Type', 'Vendor', 'Amount', 'Tax', 'Net', 'Account', 'Notes'];
 
 router.get('/', (req, res) => {
     res.json(queryTransactions(req.query));
@@ -82,6 +84,8 @@ router.get('/export.csv', (req, res) => {
         t.type === 'withdrawal' ? 'withdrawal' : 'deposit',
         t.vendor,
         signedDollars(t),
+        signedDollars(t, t.tax_cents),
+        signedDollars(t, t.amount_cents - t.tax_cents),
         t.account,
         t.notes,
     ]));

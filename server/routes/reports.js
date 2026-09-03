@@ -1,5 +1,5 @@
 const { Router } = require('express');
-const { db, ITEM_CATEGORIES } = require('../db');
+const { db, ITEM_CATEGORIES, CT_TAX_RATE } = require('../db');
 const { requireStaff } = require('../staffAuth');
 
 const router = Router();
@@ -11,9 +11,15 @@ const UNFILED = 'Unfiled';
 // (storefront) sales, and broken down again per sub-category within each top
 // category. Cancelled orders are excluded. Counter sales are valued at the
 // item's current price (stock_events records quantity, not price).
+//
+// "Income" here is NET of CT sales tax: the catalogue price is tax-inclusive,
+// so orderCents / counterCents have the tax stripped out. The tax that was
+// collected is reported separately as taxCents (and totals.salesTaxCents).
 router.get('/income-by-category', (_req, res) => {
     const orderRows = db.prepare(`
-        SELECT i.category AS category, s.name AS subcategory, SUM(oi.line_total_cents) AS cents
+        SELECT i.category AS category, s.name AS subcategory,
+               SUM(oi.line_total_cents) AS grossCents,
+               SUM(oi.tax_cents)        AS taxCents
         FROM order_items oi
         JOIN orders o ON o.id = oi.order_id
         JOIN items  i ON i.uuid = oi.item_uuid
@@ -23,7 +29,13 @@ router.get('/income-by-category', (_req, res) => {
     `).all();
 
     const counterRows = db.prepare(`
-        SELECT i.category AS category, s.name AS subcategory, SUM(-se.delta * i.price_cents) AS cents
+        SELECT i.category AS category, s.name AS subcategory,
+               SUM(-se.delta * i.price_cents) AS grossCents,
+               SUM(CASE
+                   WHEN LOWER(TRIM(COALESCE(s.name, ''))) = 'supplies' THEN 0
+                   ELSE (-se.delta * i.price_cents)
+                        - CAST(ROUND(-se.delta * i.price_cents / ${1 + CT_TAX_RATE}) AS INTEGER)
+               END) AS taxCents
         FROM stock_events se
         JOIN items i ON i.uuid = se.item_uuid
         LEFT JOIN subcategories s ON s.id = i.subcategory_id
@@ -34,14 +46,14 @@ router.get('/income-by-category', (_req, res) => {
     const byCategory = new Map();
     const bucket = (name) => {
         if (!byCategory.has(name)) {
-            byCategory.set(name, { category: name, orderCents: 0, counterCents: 0, subs: new Map() });
+            byCategory.set(name, { category: name, orderCents: 0, counterCents: 0, taxCents: 0, subs: new Map() });
         }
         return byCategory.get(name);
     };
     const subBucket = (catName, subName) => {
         const cat = bucket(catName);
         const key = subName || UNFILED;
-        if (!cat.subs.has(key)) cat.subs.set(key, { name: key, orderCents: 0, counterCents: 0 });
+        if (!cat.subs.has(key)) cat.subs.set(key, { name: key, orderCents: 0, counterCents: 0, taxCents: 0 });
         return cat.subs.get(key);
     };
 
@@ -53,12 +65,18 @@ router.get('/income-by-category', (_req, res) => {
     }
 
     for (const row of orderRows) {
-        bucket(row.category).orderCents += row.cents || 0;
-        subBucket(row.category, row.subcategory).orderCents += row.cents || 0;
+        const net = (row.grossCents || 0) - (row.taxCents || 0);
+        bucket(row.category).orderCents += net;
+        bucket(row.category).taxCents += row.taxCents || 0;
+        subBucket(row.category, row.subcategory).orderCents += net;
+        subBucket(row.category, row.subcategory).taxCents += row.taxCents || 0;
     }
     for (const row of counterRows) {
-        bucket(row.category).counterCents += row.cents || 0;
-        subBucket(row.category, row.subcategory).counterCents += row.cents || 0;
+        const net = (row.grossCents || 0) - (row.taxCents || 0);
+        bucket(row.category).counterCents += net;
+        bucket(row.category).taxCents += row.taxCents || 0;
+        subBucket(row.category, row.subcategory).counterCents += net;
+        subBucket(row.category, row.subcategory).taxCents += row.taxCents || 0;
     }
 
     const withTotal = (b) => ({ ...b, totalCents: b.orderCents + b.counterCents });
@@ -80,8 +98,9 @@ router.get('/income-by-category', (_req, res) => {
             orderCents: acc.orderCents + c.orderCents,
             counterCents: acc.counterCents + c.counterCents,
             totalCents: acc.totalCents + c.totalCents,
+            salesTaxCents: acc.salesTaxCents + c.taxCents,
         }),
-        { orderCents: 0, counterCents: 0, totalCents: 0 }
+        { orderCents: 0, counterCents: 0, totalCents: 0, salesTaxCents: 0 }
     );
 
     res.json({ categories, totals });

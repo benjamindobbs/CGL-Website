@@ -174,6 +174,7 @@ db.exec(`
         student_id     TEXT    NOT NULL DEFAULT '',
         status         TEXT    NOT NULL DEFAULT 'new' CHECK(status IN ('new','in_progress','fulfilled','cancelled')),
         total_cents    INTEGER NOT NULL,
+        tax_cents      INTEGER NOT NULL DEFAULT 0,
         payment_status TEXT    NOT NULL DEFAULT 'unpaid',
         payment_ref    TEXT,
         payment_intent TEXT,
@@ -192,7 +193,8 @@ db.exec(`
         variant_size     TEXT,
         qty              INTEGER NOT NULL,
         unit_price_cents INTEGER NOT NULL,
-        line_total_cents INTEGER NOT NULL
+        line_total_cents INTEGER NOT NULL,
+        tax_cents        INTEGER NOT NULL DEFAULT 0
     );
     CREATE INDEX IF NOT EXISTS idx_order_items_order ON order_items(order_id);
 
@@ -203,7 +205,11 @@ db.exec(`
     -- per line item so this log stays complete — see the TODO there.
     --   type   : 'deposit' (money in) | 'withdrawal' (refund / money out)
     --   vendor : 'Storefront' | 'Online Pay'
-    --   amount_cents : always positive; the type column carries the direction
+    --   amount_cents : always positive; the type column carries the direction.
+    --                  This is the GROSS (tax-inclusive) amount that moved.
+    --   tax_cents    : the CT sales tax (6.35%) portion contained in amount_cents.
+    --                  Net revenue = amount_cents - tax_cents. 0 for tax-exempt
+    --                  items (sub-category "Supplies") and for adjustments.
     --   account: item category at the time of sale (School Store / Athletics / GFX)
     --   notes  : "<item name> x<qty>"
     CREATE TABLE IF NOT EXISTS transactions (
@@ -212,6 +218,7 @@ db.exec(`
         type               TEXT    NOT NULL CHECK(type IN ('deposit','withdrawal')),
         vendor             TEXT    NOT NULL,
         amount_cents       INTEGER NOT NULL,
+        tax_cents          INTEGER NOT NULL DEFAULT 0,
         account            TEXT    NOT NULL DEFAULT '',
         notes              TEXT    NOT NULL DEFAULT '',
         source             TEXT    NOT NULL CHECK(source IN ('storefront_sale','online_order','adjustment')),
@@ -229,6 +236,30 @@ db.exec(`
 // consolidated into it by migration v1 below).
 const ITEM_CATEGORIES = ['School Store', 'Athletics', 'GFX'];
 const DEFAULT_CATEGORY = 'GFX';
+
+// Connecticut sales tax. The catalogue price_cents is treated as tax-INCLUSIVE:
+// the customer pays exactly price_cents, and that amount already contains the
+// tax. splitTaxInclusive() pulls the tax back out of a gross amount.
+const CT_TAX_RATE = 0.0635;
+const TAX_EXEMPT_SUBCATEGORY = 'supplies';
+
+// True when an item is tax-exempt because of its sub-category name. Pass the
+// sub-category NAME (ITEM_SELECT exposes it as `subcategory`); match is
+// case/space-insensitive so "Supplies", " supplies " etc. all count.
+function isSubcategoryTaxExempt(subcategoryName) {
+    return String(subcategoryName ?? '').trim().toLowerCase() === TAX_EXEMPT_SUBCATEGORY;
+}
+
+// Splits a gross (tax-inclusive) amount into { netCents, taxCents } such that
+// netCents + taxCents === grossCents exactly. Rounding is done once on the
+// amount passed in, so callers should pass the LINE total (price * qty), not a
+// unit price, to avoid per-unit drift. taxable=false returns all-net.
+function splitTaxInclusive(grossCents, taxable = true) {
+    const gross = Math.round(grossCents);
+    if (!taxable || gross <= 0) return { netCents: gross, taxCents: 0 };
+    const netCents = Math.round(gross / (1 + CT_TAX_RATE));
+    return { netCents, taxCents: gross - netCents };
+}
 
 // Fixed choice lists for the district-staff self-service tools.
 const JOB_CATEGORIES = [
@@ -248,7 +279,7 @@ function normalizeCategory(value) {
 // --- Schema migrations -------------------------------------------------------
 // Bump SCHEMA_VERSION and add a matching `if (fromVersion < N)` block for each
 // change. PRAGMA user_version persists in the DB file, so each block runs once.
-const SCHEMA_VERSION = 5;
+const SCHEMA_VERSION = 6;
 const fromVersion = db.prepare('PRAGMA user_version').get().user_version;
 
 // True when the table already has the given column (used to make ADD COLUMN
@@ -322,6 +353,73 @@ if (fromVersion < 5) {
     db.exec("UPDATE orders SET payment_status = 'legacy'");
 }
 
+if (fromVersion < 6) {
+    // CT sales tax (6.35%), handled as tax-INCLUSIVE: price_cents already
+    // contains the tax. Add the columns that hold the split, then back-fill
+    // every historical row once.
+    if (!tableHasColumn('orders', 'tax_cents')) {
+        db.exec('ALTER TABLE orders ADD COLUMN tax_cents INTEGER NOT NULL DEFAULT 0');
+    }
+    if (!tableHasColumn('order_items', 'tax_cents')) {
+        db.exec('ALTER TABLE order_items ADD COLUMN tax_cents INTEGER NOT NULL DEFAULT 0');
+    }
+    if (!tableHasColumn('transactions', 'tax_cents')) {
+        db.exec('ALTER TABLE transactions ADD COLUMN tax_cents INTEGER NOT NULL DEFAULT 0');
+    }
+
+    // Back-fill. Tax is pulled out of the stored gross amount:
+    //   tax = gross - round(gross / 1.0635)
+    // unless the item's current sub-category is "Supplies" (tax-exempt), in
+    // which case tax = 0. Historical rows are classified by the item's CURRENT
+    // sub-category (sale-time sub-category was never recorded) — same caveat as
+    // the v3 ledger back-fill and the income report. No-op on a fresh DB.
+    db.exec(`
+        UPDATE order_items
+        SET tax_cents = (
+            SELECT CASE
+                WHEN LOWER(TRIM(COALESCE(s.name, ''))) = '${TAX_EXEMPT_SUBCATEGORY}' THEN 0
+                ELSE order_items.line_total_cents
+                     - CAST(ROUND(order_items.line_total_cents / ${1 + CT_TAX_RATE}) AS INTEGER)
+            END
+            FROM items i
+            LEFT JOIN subcategories s ON s.id = i.subcategory_id
+            WHERE i.uuid = order_items.item_uuid
+        )
+        WHERE EXISTS (SELECT 1 FROM items i WHERE i.uuid = order_items.item_uuid);
+
+        UPDATE orders
+        SET tax_cents = COALESCE(
+            (SELECT SUM(oi.tax_cents) FROM order_items oi WHERE oi.order_id = orders.id), 0);
+
+        UPDATE transactions
+        SET tax_cents = (
+            SELECT CASE
+                WHEN LOWER(TRIM(COALESCE(s.name, ''))) = '${TAX_EXEMPT_SUBCATEGORY}' THEN 0
+                ELSE transactions.amount_cents
+                     - CAST(ROUND(transactions.amount_cents / ${1 + CT_TAX_RATE}) AS INTEGER)
+            END
+            FROM stock_events se
+            JOIN items i ON i.uuid = se.item_uuid
+            LEFT JOIN subcategories s ON s.id = i.subcategory_id
+            WHERE se.id = transactions.ref_stock_event_id
+        )
+        WHERE source = 'storefront_sale'
+          AND ref_stock_event_id IS NOT NULL
+          AND EXISTS (
+              SELECT 1 FROM stock_events se JOIN items i ON i.uuid = se.item_uuid
+              WHERE se.id = transactions.ref_stock_event_id
+          );
+
+        -- Online-order transaction rows carry no item reference, so they can't
+        -- be classified by sub-category; treat them all as taxable. In practice
+        -- there are none (test orders were cleared; pre-Stripe orders are
+        -- 'legacy' and wrote no ledger rows).
+        UPDATE transactions
+        SET tax_cents = amount_cents - CAST(ROUND(amount_cents / ${1 + CT_TAX_RATE}) AS INTEGER)
+        WHERE source = 'online_order' AND tax_cents = 0;
+    `);
+}
+
 if (fromVersion < SCHEMA_VERSION) {
     db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`);
 }
@@ -365,14 +463,14 @@ function applyStockDelta({ itemUuid, delta, reason, actorUserKey, note = '', ref
 // is the item category so the export lines up with the income-by-category
 // report. Returns the stored row.
 function recordTransaction({
-    postedAt = Date.now(), type, vendor, amountCents, account = '', notes = '',
+    postedAt = Date.now(), type, vendor, amountCents, taxCents = 0, account = '', notes = '',
     source, refStockEventId = null, refOrderId = null, actorUserKey = '',
 }) {
     const info = db.prepare(`
         INSERT INTO transactions
-            (posted_at, type, vendor, amount_cents, account, notes, source, ref_stock_event_id, ref_order_id, actor_user_key, created_at)
-        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(postedAt, type, vendor, Math.round(amountCents), account, notes, source, refStockEventId, refOrderId, actorUserKey, Date.now());
+            (posted_at, type, vendor, amount_cents, tax_cents, account, notes, source, ref_stock_event_id, ref_order_id, actor_user_key, created_at)
+        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(postedAt, type, vendor, Math.round(amountCents), Math.round(taxCents), account, notes, source, refStockEventId, refOrderId, actorUserKey, Date.now());
     return db.prepare('SELECT * FROM transactions WHERE id = ?').get(Number(info.lastInsertRowid));
 }
 
@@ -414,6 +512,7 @@ function sweepStaleUnpaidOrders(maxAgeMs = 24 * 60 * 60 * 1000) {
 module.exports = {
     db, upsertUser, isStaff, applyStockDelta, recordTransaction, randomUUID,
     ITEM_CATEGORIES, DEFAULT_CATEGORY, normalizeCategory, normalizeHex,
+    CT_TAX_RATE, splitTaxInclusive, isSubcategoryTaxExempt,
     JOB_CATEGORIES, JERSEY_SIZES,
     ITEM_SELECT, getItem, sweepStaleUnpaidOrders,
 };

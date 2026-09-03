@@ -11,7 +11,15 @@ To finish going live:
   2. fly storage create                          (injects AWS_* + BUCKET_NAME for Tigris)
   3. Deploy. Without 1/2 the tools still work minus email / file uploads.
 
+CT sales tax (6.35%): catalogue price_cents is tax-INCLUSIVE. Tax is split out
+of every sale (orders + storefront) and stored per line/txn; "Supplies"
+sub-category items are exempt. Income report shows revenue net of tax plus a
+"Sales Tax" column. Migration v6 back-fills existing rows (classified by the
+item's CURRENT sub-category). Stripe still charges the exact shelf price -- the
+split is our-side only; itemising tax on Stripe receipts (a TaxRate with
+inclusive:true) is a possible later add.
+
 Still open / possible follow-ups:
   - Let a coach delete their own roster from /jerseys/ (admin can already delete).
-  - Confirm sales-tax handling for store orders with the 501(c)(3) treasurer.
   - Order-status email notifications; partial refunds.
+  - Optional: itemise CT tax as a line on Stripe Checkout / receipts.

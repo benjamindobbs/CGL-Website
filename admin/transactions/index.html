@@ -98,6 +98,8 @@
                             <th>Type</th>
                             <th>Vendor</th>
                             <th>Amount</th>
+                            <th>Tax</th>
+                            <th>Net</th>
                             <th>Account</th>
                             <th>Notes</th>
                         </tr>
@@ -120,6 +122,7 @@
             // Signed dollars: deposits positive, withdrawals negative.
             const money = (cents) => `${cents < 0 ? '−' : ''}$${(Math.abs(cents) / 100).toFixed(2)}`;
             const signedCents = (t) => (t.type === 'withdrawal' ? -t.amount_cents : t.amount_cents);
+            const signedTax = (t) => (t.type === 'withdrawal' ? -(t.tax_cents || 0) : (t.tax_cents || 0));
             const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => (
                 { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]
             ));
@@ -150,14 +153,17 @@
                             <td>${t.type === 'withdrawal' ? 'Withdrawal' : 'Deposit'}</td>
                             <td>${esc(t.vendor)}</td>
                             <td>${money(signedCents(t))}</td>
+                            <td>${money(signedTax(t))}</td>
+                            <td>${money(signedCents(t) - signedTax(t))}</td>
                             <td>${esc(t.account)}</td>
                             <td>${esc(t.notes)}</td>
                         </tr>
                     `).join('');
 
-                    const net = rows.reduce((sum, t) => sum + signedCents(t), 0);
+                    const gross = rows.reduce((sum, t) => sum + signedCents(t), 0);
+                    const tax = rows.reduce((sum, t) => sum + signedTax(t), 0);
                     summary.textContent = rows.length
-                        ? `${rows.length} transaction${rows.length === 1 ? '' : 's'} — net ${money(net)}`
+                        ? `${rows.length} transaction${rows.length === 1 ? '' : 's'} — ${money(gross)} total, ${money(tax)} CT sales tax, ${money(gross - tax)} net`
                         : 'No transactions match these filters.';
                     summary.classList.remove('placeholder-text');
                     table.style.display = rows.length ? '' : 'none';

@@ -1,5 +1,5 @@
 const { Router } = require('express');
-const { db, applyStockDelta, recordTransaction, normalizeCategory } = require('../db');
+const { db, applyStockDelta, recordTransaction, normalizeCategory, splitTaxInclusive, isSubcategoryTaxExempt, ITEM_SELECT } = require('../db');
 const { requireAuth } = require('../auth');
 const { requireStaff } = require('../staffAuth');
 const { stripe, isStripeConfigured, PUBLIC_BASE_URL } = require('../stripe');
@@ -35,14 +35,19 @@ router.post('/', requireAuth, async (req, res) => {
     // prices. Must be active AND orderable: the same gate the order page uses.
     const lines = [];
     for (const line of cart) {
-        const item = db.prepare('SELECT * FROM items WHERE uuid = ? AND active = 1 AND orderable = 1').get(line.uuid);
+        const item = db.prepare(`${ITEM_SELECT} WHERE i.uuid = ? AND i.active = 1 AND i.orderable = 1`).get(line.uuid);
         if (!item) return res.status(400).json({ error: `Item ${line.uuid} is no longer available to order` });
         const qty = Number(line.qty);
         if (!Number.isInteger(qty) || qty <= 0) return res.status(400).json({ error: `Invalid quantity for ${item.name}` });
-        lines.push({ item, qty, lineTotalCents: item.price_cents * qty });
+        const lineTotalCents = item.price_cents * qty;
+        // price_cents is tax-inclusive; pull the CT sales tax back out of the
+        // line total (0 for items in a "Supplies" sub-category).
+        const { taxCents } = splitTaxInclusive(lineTotalCents, !isSubcategoryTaxExempt(item.subcategory));
+        lines.push({ item, qty, lineTotalCents, taxCents });
     }
 
     const totalCents = lines.reduce((sum, l) => sum + l.lineTotalCents, 0);
+    const taxCentsTotal = lines.reduce((sum, l) => sum + l.taxCents, 0);
     const paymentStatus = totalCents === 0 ? 'free' : 'unpaid';
 
     // A paid order needs Stripe up before we create anything.
@@ -55,17 +60,17 @@ router.post('/', requireAuth, async (req, res) => {
     let orderId;
     try {
         const orderResult = db.prepare(`
-            INSERT INTO orders(user_key, customer_name, email, student_id, status, total_cents, payment_status, created_at, updated_at)
-            VALUES(?, ?, ?, ?, 'new', ?, ?, ?, ?)
-        `).run(req.userKey, customerName, email, studentId || '', totalCents, paymentStatus, now, now);
+            INSERT INTO orders(user_key, customer_name, email, student_id, status, total_cents, tax_cents, payment_status, created_at, updated_at)
+            VALUES(?, ?, ?, ?, 'new', ?, ?, ?, ?, ?)
+        `).run(req.userKey, customerName, email, studentId || '', totalCents, taxCentsTotal, paymentStatus, now, now);
         orderId = Number(orderResult.lastInsertRowid);
 
         const insertLine = db.prepare(`
-            INSERT INTO order_items(order_id, item_uuid, item_name, variant_color, variant_size, qty, unit_price_cents, line_total_cents)
-            VALUES(?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO order_items(order_id, item_uuid, item_name, variant_color, variant_size, qty, unit_price_cents, line_total_cents, tax_cents)
+            VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
         for (const l of lines) {
-            insertLine.run(orderId, l.item.uuid, l.item.name, l.item.variant_color, l.item.variant_size, l.qty, l.item.price_cents, l.lineTotalCents);
+            insertLine.run(orderId, l.item.uuid, l.item.name, l.item.variant_color, l.item.variant_size, l.qty, l.item.price_cents, l.lineTotalCents, l.taxCents);
         }
         db.exec('COMMIT');
     } catch (err) {
@@ -154,6 +159,7 @@ router.patch('/:id', requireStaff, async (req, res) => {
                 type: 'withdrawal',
                 vendor: 'Online Pay',
                 amountCents: line.line_total_cents,
+                taxCents: line.tax_cents,
                 account: normalizeCategory(line.item_category),
                 notes: `Refund: ${line.item_name}${variantLabel(line)} x${line.qty}`,
                 source: 'online_order',

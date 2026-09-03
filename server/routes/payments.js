@@ -40,6 +40,7 @@ function settlePaidOrder(order, paymentIntentId) {
             type: 'deposit',
             vendor: 'Online Pay',
             amountCents: line.line_total_cents,
+            taxCents: line.tax_cents,
             account: normalizeCategory(line.item_category),
             notes: `${line.item_name}${variantLabel(line)} x${line.qty}`,
             source: 'online_order',

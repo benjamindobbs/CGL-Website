@@ -168,7 +168,7 @@
                             <td>${order.customer_name}<br><small>${order.email}</small></td>
                             <td>${order.student_id || '—'}</td>
                             <td>${itemsSummary}</td>
-                            <td>$${(order.total_cents / 100).toFixed(2)}</td>
+                            <td>$${(order.total_cents / 100).toFixed(2)}${order.tax_cents ? `<br><small>incl. $${(order.tax_cents / 100).toFixed(2)} tax</small>` : ''}</td>
                             <td>${payBadge(order.payment_status)}</td>
                             <td>
                                 <select onchange="updateStatus(${order.id}, this.value, '${order.payment_status}')">

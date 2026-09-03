@@ -87,6 +87,9 @@
             </div>
 
             <h2 style="margin-top:40px;">Income by Category</h2>
+            <p class="field-note">Amounts are revenue <strong>net of CT sales tax</strong>. The Sales Tax
+                column is the 6.35% collected and owed to the state. Items in a &ldquo;Supplies&rdquo;
+                sub-category are tax-exempt.</p>
             <p id="income-status" class="placeholder-text">Loading totals&hellip;</p>
             <div style="overflow-x:auto;">
                 <table class="admin-table" id="income-table" style="display:none;">
@@ -95,6 +98,7 @@
                             <th>Category</th>
                             <th>Online Orders</th>
                             <th>Counter Sales</th>
+                            <th>Sales Tax</th>
                             <th>Total</th>
                         </tr>
                     </thead>
@@ -132,6 +136,7 @@
                                 <td>${esc(c.category)}</td>
                                 <td>${money(c.orderCents)}</td>
                                 <td>${money(c.counterCents)}</td>
+                                <td>${money(c.taxCents || 0)}</td>
                                 <td><strong>${money(c.totalCents)}</strong></td>
                             </tr>`;
                         const subs = (c.subcategories || []).map((s) => `
@@ -139,6 +144,7 @@
                                 <td>${esc(s.name)}</td>
                                 <td>${money(s.orderCents)}</td>
                                 <td>${money(s.counterCents)}</td>
+                                <td>${money(s.taxCents || 0)}</td>
                                 <td>${money(s.totalCents)}</td>
                             </tr>`).join('');
                         return head + subs;
@@ -149,6 +155,7 @@
                             <th>All categories</th>
                             <th>${money(totals.orderCents)}</th>
                             <th>${money(totals.counterCents)}</th>
+                            <th>${money(totals.salesTaxCents || 0)}</th>
                             <th>${money(totals.totalCents)}</th>
                         </tr>
                     `;

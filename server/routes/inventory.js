@@ -1,5 +1,5 @@
 const { Router } = require('express');
-const { db, applyStockDelta, recordTransaction } = require('../db');
+const { db, applyStockDelta, recordTransaction, splitTaxInclusive, isSubcategoryTaxExempt, ITEM_SELECT } = require('../db');
 const { requireStaff } = require('../staffAuth');
 
 function variantLabel(item) {
@@ -11,7 +11,7 @@ const router = Router();
 router.use(requireStaff);
 
 function findItem(uuid) {
-    return db.prepare('SELECT * FROM items WHERE uuid = ?').get(uuid);
+    return db.prepare(`${ITEM_SELECT} WHERE i.uuid = ?`).get(uuid);
 }
 
 router.post('/restock', (req, res) => {
@@ -41,11 +41,15 @@ router.post('/storefront-sale', (req, res) => {
     });
 
     // Financial ledger entry. Amount is snapshotted at the current price so a
-    // later price change never rewrites this sale.
+    // later price change never rewrites this sale. price_cents is tax-inclusive;
+    // pull the CT sales tax out of the line total (0 for a "Supplies" item).
+    const grossCents = quantity * item.price_cents;
+    const { taxCents } = splitTaxInclusive(grossCents, !isSubcategoryTaxExempt(item.subcategory));
     recordTransaction({
         type: 'deposit',
         vendor: 'Storefront',
-        amountCents: quantity * item.price_cents,
+        amountCents: grossCents,
+        taxCents,
         account: item.category,
         notes: `${item.name}${variantLabel(item)} x${quantity}`,
         source: 'storefront_sale',
