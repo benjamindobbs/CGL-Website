@@ -35,19 +35,49 @@ async function loadCatalog() {
         const items = await res.json();
 
         catalog = {};
+        const productSubcat = {}; // product name -> sub-category name (first seen)
         for (const item of items) {
             const size = item.variant_size || '';
             catalog[item.name] ??= {};
             catalog[item.name][item.variant_color] ??= {};
             catalog[item.name][item.variant_color][size] = item;
+            productSubcat[item.name] ??= item.subcategory || null;
         }
 
-        const productSelect = document.getElementById('product');
+        // Group the dropdown by sub-category, each rendered as an <optgroup>
+        // (a bold, non-selectable subheader). Groups are alphabetical; products
+        // with no sub-category go in a trailing "Other" group. If nothing has a
+        // sub-category, fall back to a flat list.
+        const UNFILED = 'Other';
+        const groups = new Map();
         for (const name of Object.keys(catalog)) {
-            const opt = document.createElement('option');
-            opt.value = name;
-            opt.textContent = name;
-            productSelect.appendChild(opt);
+            const key = productSubcat[name] || UNFILED;
+            if (!groups.has(key)) groups.set(key, []);
+            groups.get(key).push(name);
+        }
+        const orderedKeys = [...groups.keys()].sort((a, b) => {
+            if (a === UNFILED) return 1;
+            if (b === UNFILED) return -1;
+            return a.localeCompare(b);
+        });
+        const useGroups = orderedKeys.some((k) => k !== UNFILED);
+
+        const productSelect = document.getElementById('product');
+        for (const key of orderedKeys) {
+            const names = groups.get(key).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+            let parent = productSelect;
+            if (useGroups) {
+                const group = document.createElement('optgroup');
+                group.label = key;
+                productSelect.appendChild(group);
+                parent = group;
+            }
+            for (const name of names) {
+                const opt = document.createElement('option');
+                opt.value = name;
+                opt.textContent = name;
+                parent.appendChild(opt);
+            }
         }
 
         document.getElementById('loading-status').style.display = 'none';
