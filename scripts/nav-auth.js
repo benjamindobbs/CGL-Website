@@ -9,6 +9,7 @@
 // wraps rather than clobbers the page's own handler.
 (function () {
     function isDistrict(session) {
+        if (session && typeof session.isDistrict === 'boolean') return session.isDistrict;
         return !!(session && session.email &&
             String(session.email).toLowerCase().endsWith('@hartfordschools.org'));
     }

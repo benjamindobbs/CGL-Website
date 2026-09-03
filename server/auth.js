@@ -1,6 +1,27 @@
-const { db, upsertUser } = require('./db');
+const { db, upsertUser, isSigninAllowed } = require('./db');
 
 const ALLOWED_DOMAINS = ['hartfordschools.org', 'students.hartfordschools.org'];
+
+// Decides whether a Google-verified email may sign in, and what user_key it
+// gets. Returns null to reject. District-domain accounts (ALLOWED_DOMAINS) key
+// on the local part, as they always have. Individually allow-listed
+// out-of-district addresses (signin_allowlist, via server/manage-signin.js) key
+// on the FULL lower-cased email, so a local part like "jsmith" can never
+// collide with a district "jsmith@hartfordschools.org".
+function resolveIdentity(rawEmail) {
+    const email = String(rawEmail || '').trim();
+    const at = email.lastIndexOf('@');
+    if (at < 1) return null;
+    const domain = email.slice(at + 1).toLowerCase();
+    if (ALLOWED_DOMAINS.includes(domain)) {
+        return { userKey: email.slice(0, at), email };
+    }
+    if (isSigninAllowed(email)) {
+        const lower = email.toLowerCase();
+        return { userKey: lower, email: lower };
+    }
+    return null;
+}
 
 // Cache verified tokens: token → { userKey, email, exp }
 const tokenCache = new Map();
@@ -17,11 +38,10 @@ async function verifyToken(token) {
     const data = await res.json();
     if (!data.email || data.error) return null;
 
-    const domain = data.email.split('@')[1];
-    if (!ALLOWED_DOMAINS.includes(domain)) return null;
+    const identity = resolveIdentity(data.email);
+    if (!identity) return null;
 
-    const userKey = data.email.split('@')[0];
-    const entry = { userKey, email: data.email, exp: data.expires_in
+    const entry = { userKey: identity.userKey, email: identity.email, exp: data.expires_in
         ? Math.floor(Date.now() / 1000) + parseInt(data.expires_in)
         : Math.floor(Date.now() / 1000) + 3600
     };
@@ -68,17 +88,25 @@ async function requireAuth(req, res, next) {
     next();
 }
 
-// Gate for the district-staff self-service tools (job requests, jersey rosters):
-// any signed-in @hartfordschools.org account, but NOT student accounts. Distinct
-// from requireStaff, which is the lab's own staff whitelist.
+// May this account use the district self-service tools (job requests, jersey
+// rosters)? Any @hartfordschools.org account, plus individually allow-listed
+// out-of-district collaborators (signin_allowlist). Student accounts
+// (@students.hartfordschools.org) are excluded. Distinct from isStaff(), which
+// is the lab's own admin whitelist.
+function isDistrictUser(email) {
+    const e = String(email || '').toLowerCase();
+    return e.endsWith('@hartfordschools.org') || isSigninAllowed(e);
+}
+
+// Gate for the district self-service tools. See isDistrictUser().
 function requireDistrictStaff(req, res, next) {
     requireAuth(req, res, (err) => {
         if (err) return next(err);
-        if (!req.userEmail || !req.userEmail.toLowerCase().endsWith('@hartfordschools.org')) {
-            return res.status(403).json({ error: 'A hartfordschools.org staff account is required (student accounts cannot use this tool).' });
+        if (!isDistrictUser(req.userEmail)) {
+            return res.status(403).json({ error: 'This tool is for school staff accounts (student accounts cannot use it).' });
         }
         next();
     });
 }
 
-module.exports = { requireAuth, requireDistrictStaff, ALLOWED_DOMAINS };
+module.exports = { requireAuth, requireDistrictStaff, resolveIdentity, isDistrictUser, ALLOWED_DOMAINS };
