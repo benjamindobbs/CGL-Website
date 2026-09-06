@@ -9,9 +9,14 @@ function requireDistrictSession(onReady) {
             window.location.href = '/signin/?next=' + encodeURIComponent(window.location.pathname);
             return;
         }
-        if (!String(session.email || '').toLowerCase().endsWith('@hartfordschools.org')) {
+        // Server sets session.isDistrict (hartfordschools.org staff or an
+        // allow-listed collaborator). Fall back to the domain check for a
+        // cached session from before that flag existed.
+        var allowed = session.isDistrict === true ||
+            String(session.email || '').toLowerCase().endsWith('@hartfordschools.org');
+        if (!allowed) {
             document.getElementById('loading-status').innerText =
-                'This tool needs a hartfordschools.org staff account. Student accounts can’t use it.';
+                'This tool is for school staff accounts. Student accounts can’t use it.';
             return;
         }
         document.getElementById('loading-status').style.display = 'none';

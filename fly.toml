@@ -11,6 +11,14 @@
 # (fly ssh console starts a machine if none is running, since
 # min_machines_running = 0 below lets it fully scale to zero when idle.)
 #
+# Allowing a specific OUT-OF-DISTRICT email to sign in (beyond the
+# hartfordschools.org / students.hartfordschools.org domains). These accounts can
+# sign in, order, and use /request/ + /jerseys/ like a hartfordschools.org staff
+# account; they get no admin unless also added above:
+#   fly ssh console -a cgl-website -C "node server/manage-signin.js add coach@example.com 'Away-team coach'"
+#   fly ssh console -a cgl-website -C "node server/manage-signin.js remove coach@example.com"
+#   fly ssh console -a cgl-website -C "node server/manage-signin.js list"
+#
 # Stripe (online order payments). Set as secrets, never in [env]:
 #   fly secrets set -a cgl-website \
 #     STRIPE_SECRET_KEY=sk_live_xxx \

@@ -34,6 +34,18 @@ db.exec(`
         email TEXT PRIMARY KEY
     );
 
+    -- Individual out-of-district email addresses allowed to sign in, on top of
+    -- the ALLOWED_DOMAINS gate in server/auth.js. Managed with
+    -- server/manage-signin.js. Emails are stored lower-cased. These accounts
+    -- count as district users (isDistrictUser in server/auth.js): they can sign
+    -- in, order, and use /request/ + /jerseys/. They get no admin access unless
+    -- also added to staff_whitelist.
+    CREATE TABLE IF NOT EXISTS signin_allowlist (
+        email      TEXT PRIMARY KEY,
+        note       TEXT    NOT NULL DEFAULT '',
+        created_at INTEGER NOT NULL
+    );
+
     -- Staff-managed second grouping level, nested under a fixed top category
     -- (see ITEM_CATEGORIES). e.g. "Uniforms" or "Spring Collection" under GFX,
     -- "Chips" under School Store. Income on the Staff Tools home page breaks
@@ -438,6 +450,13 @@ function isStaff(email) {
     return !!db.prepare('SELECT 1 FROM staff_whitelist WHERE email = ?').get(email);
 }
 
+// True when this exact address is on the out-of-district sign-in allow-list
+// (server/manage-signin.js). Stored and compared lower-cased.
+function isSigninAllowed(email) {
+    return !!db.prepare('SELECT 1 FROM signin_allowlist WHERE email = ?')
+        .get(String(email || '').trim().toLowerCase());
+}
+
 // Moves an item's stock by delta and records why, atomically. reason must be
 // one of the stock_events CHECK values. ref_order_id is only meaningful for
 // reason='order'.
@@ -510,7 +529,7 @@ function sweepStaleUnpaidOrders(maxAgeMs = 24 * 60 * 60 * 1000) {
 }
 
 module.exports = {
-    db, upsertUser, isStaff, applyStockDelta, recordTransaction, randomUUID,
+    db, upsertUser, isStaff, isSigninAllowed, applyStockDelta, recordTransaction, randomUUID,
     ITEM_CATEGORIES, DEFAULT_CATEGORY, normalizeCategory, normalizeHex,
     CT_TAX_RATE, splitTaxInclusive, isSubcategoryTaxExempt,
     JOB_CATEGORIES, JERSEY_SIZES,
