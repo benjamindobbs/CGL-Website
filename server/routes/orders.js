@@ -1,5 +1,5 @@
 const { Router } = require('express');
-const { db, applyStockDelta, recordTransaction, normalizeCategory, splitTaxInclusive, isSubcategoryTaxExempt, ITEM_SELECT } = require('../db');
+const { db, applyStockDelta, recordTransaction, normalizeCategory, splitTaxInclusive, isSubcategoryTaxExempt, CT_TAX_RATE, ITEM_SELECT } = require('../db');
 const { requireAuth } = require('../auth');
 const { requireStaff } = require('../staffAuth');
 const { stripe, isStripeConfigured, PUBLIC_BASE_URL } = require('../stripe');
@@ -90,19 +90,40 @@ router.post('/', requireAuth, async (req, res) => {
 
     // Paid order: hand off to Stripe Checkout. Stock and the financial-ledger
     // rows are written only once payment confirms, in routes/payments.js.
+    //
+    // Tax is handled manually (no Stripe Tax): catalogue prices are CT-tax-
+    // inclusive, and splitTaxInclusive() already gave us the tax portion per
+    // line. For the Stripe receipt we show each product line at its pre-tax
+    // amount and add one explicit "CT sales tax" line, so the tax is stated
+    // separately from the price (Conn. Gen. Stat. §12-408). unit_amount_decimal
+    // keeps the per-line net exact even when it doesn't divide evenly by qty;
+    // the grand total is unchanged since Σ(net) + taxCentsTotal === totalCents.
+    const taxRatePct = (CT_TAX_RATE * 100).toFixed(2);
+    const lineItems = lines
+        .filter((l) => l.item.price_cents > 0)
+        .map((l) => ({
+            quantity: l.qty,
+            price_data: {
+                currency: 'usd',
+                unit_amount_decimal: ((l.lineTotalCents - l.taxCents) / l.qty).toFixed(12),
+                product_data: { name: `${l.item.name}${variantLabel(l.item)}` },
+            },
+        }));
+    if (taxCentsTotal > 0) {
+        lineItems.push({
+            quantity: 1,
+            price_data: {
+                currency: 'usd',
+                unit_amount: taxCentsTotal,
+                product_data: { name: `CT sales tax (${taxRatePct}%)` },
+            },
+        });
+    }
+
     try {
         const session = await stripe.checkout.sessions.create({
             mode: 'payment',
-            line_items: lines
-                .filter((l) => l.item.price_cents > 0)
-                .map((l) => ({
-                    quantity: l.qty,
-                    price_data: {
-                        currency: 'usd',
-                        unit_amount: l.item.price_cents,
-                        product_data: { name: `${l.item.name}${variantLabel(l.item)}` },
-                    },
-                })),
+            line_items: lineItems,
             customer_email: email,
             client_reference_id: String(orderId),
             metadata: { order_id: String(orderId) },
