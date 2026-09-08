@@ -56,8 +56,11 @@
         <div id="staff-ui" style="display:none;">
             <h1>Transaction Log</h1>
             <p class="field-note" style="margin-bottom:24px;">
-                Every purchase made through the Storefront. Online payments are not recorded here
-                yet &mdash; that will be wired in when online payment handling is added.
+                Every purchase made through the Storefront or the online store. Payment Method
+                (Cash / Online) marks how each Storefront sale was tendered at the register &mdash;
+                Online covers Venmo, CashApp, etc. &mdash; so the cash drawer can be reconciled on
+                its own. Online store orders go through Stripe, a separate rail, and show no
+                Payment Method here.
             </p>
 
             <div class="config-card">
@@ -77,6 +80,14 @@
                             <option value="School Store">School Store</option>
                             <option value="Athletics">Athletics</option>
                             <option value="GFX">GFX</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="payment-method">Payment Method</label>
+                        <select id="payment-method">
+                            <option value="">All methods</option>
+                            <option value="cash">Cash</option>
+                            <option value="online">Online</option>
                         </select>
                     </div>
                     <div class="txn-filter-actions">
@@ -101,6 +112,7 @@
                             <th>Tax</th>
                             <th>Net</th>
                             <th>Account</th>
+                            <th>Payment</th>
                             <th>Notes</th>
                         </tr>
                     </thead>
@@ -135,6 +147,7 @@
                 if ($('from').value) p.set('from', $('from').value);
                 if ($('to').value) p.set('to', $('to').value);
                 if ($('account').value) p.set('account', $('account').value);
+                if ($('payment-method').value) p.set('paymentMethod', $('payment-method').value);
                 const s = p.toString();
                 return s ? `?${s}` : '';
             }
@@ -156,6 +169,7 @@
                             <td>${money(signedTax(t))}</td>
                             <td>${money(signedCents(t) - signedTax(t))}</td>
                             <td>${esc(t.account)}</td>
+                            <td>${t.payment_method ? `<span class="status-badge pay-${t.payment_method}">${t.payment_method === 'online' ? 'Online' : 'Cash'}</span>` : '&mdash;'}</td>
                             <td>${esc(t.notes)}</td>
                         </tr>
                     `).join('');
@@ -198,7 +212,7 @@
 
             $('apply-btn').addEventListener('click', load);
             $('export-btn').addEventListener('click', exportCsv);
-            [$('from'), $('to'), $('account')].forEach((el) => {
+            [$('from'), $('to'), $('account'), $('payment-method')].forEach((el) => {
                 el.addEventListener('change', load);
             });
 

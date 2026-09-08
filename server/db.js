@@ -224,6 +224,15 @@ db.exec(`
     --                  items (sub-category "Supplies") and for adjustments.
     --   account: item category at the time of sale (School Store / Athletics / GFX)
     --   notes  : "<item name> x<qty>"
+    --   payment_method: storefront tender, for reconciling the cash drawer:
+    --                  'cash' or 'online' (Venmo/CashApp scanned at the
+    --                  register — which app isn't tracked, just that it wasn't
+    --                  cash in the drawer). Staff pick it at time of sale (see
+    --                  routes/inventory.js). Only meaningful for
+    --                  source='storefront_sale' — '' (not applicable) for
+    --                  online_order/adjustment rows, which move through Stripe,
+    --                  a completely separate rail already identified by
+    --                  vendor/source and out of scope for this reconciliation.
     CREATE TABLE IF NOT EXISTS transactions (
         id                 INTEGER PRIMARY KEY AUTOINCREMENT,
         posted_at          INTEGER NOT NULL,
@@ -234,6 +243,7 @@ db.exec(`
         account            TEXT    NOT NULL DEFAULT '',
         notes              TEXT    NOT NULL DEFAULT '',
         source             TEXT    NOT NULL CHECK(source IN ('storefront_sale','online_order','adjustment')),
+        payment_method     TEXT    NOT NULL DEFAULT '',
         ref_stock_event_id INTEGER,
         ref_order_id       INTEGER,
         actor_user_key     TEXT    NOT NULL DEFAULT '',
@@ -291,7 +301,7 @@ function normalizeCategory(value) {
 // --- Schema migrations -------------------------------------------------------
 // Bump SCHEMA_VERSION and add a matching `if (fromVersion < N)` block for each
 // change. PRAGMA user_version persists in the DB file, so each block runs once.
-const SCHEMA_VERSION = 6;
+const SCHEMA_VERSION = 8;
 const fromVersion = db.prepare('PRAGMA user_version').get().user_version;
 
 // True when the table already has the given column (used to make ADD COLUMN
@@ -432,6 +442,28 @@ if (fromVersion < 6) {
     `);
 }
 
+if (fromVersion < 7) {
+    // Reconciliation: mark each transaction 'cash' or 'online' so the storefront
+    // cash drawer can be reconciled separately from card/online money. App-
+    // enforced (no CHECK), same reasoning as orders.payment_status above.
+    if (!tableHasColumn('transactions', 'payment_method')) {
+        db.exec("ALTER TABLE transactions ADD COLUMN payment_method TEXT NOT NULL DEFAULT 'cash'");
+    }
+    // Online-store rows were always paid online; the column default ('cash')
+    // is correct for pre-existing storefront_sale rows, which predate this
+    // feature and were rung up at the register.
+    db.exec("UPDATE transactions SET payment_method = 'online' WHERE source = 'online_order'");
+}
+
+if (fromVersion < 8) {
+    // Correction: storefront "online" tender (Venmo/CashApp at the register) is
+    // a fully separate thing from the Stripe-powered online store — the v7
+    // migration above wrongly stamped Stripe order rows 'online' too. Clear
+    // payment_method back to '' (not applicable) on anything that isn't a
+    // counter sale; only storefront_sale rows carry a real cash/online value.
+    db.exec("UPDATE transactions SET payment_method = '' WHERE source != 'storefront_sale'");
+}
+
 if (fromVersion < SCHEMA_VERSION) {
     db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`);
 }
@@ -483,13 +515,13 @@ function applyStockDelta({ itemUuid, delta, reason, actorUserKey, note = '', ref
 // report. Returns the stored row.
 function recordTransaction({
     postedAt = Date.now(), type, vendor, amountCents, taxCents = 0, account = '', notes = '',
-    source, refStockEventId = null, refOrderId = null, actorUserKey = '',
+    source, paymentMethod = '', refStockEventId = null, refOrderId = null, actorUserKey = '',
 }) {
     const info = db.prepare(`
         INSERT INTO transactions
-            (posted_at, type, vendor, amount_cents, tax_cents, account, notes, source, ref_stock_event_id, ref_order_id, actor_user_key, created_at)
-        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(postedAt, type, vendor, Math.round(amountCents), Math.round(taxCents), account, notes, source, refStockEventId, refOrderId, actorUserKey, Date.now());
+            (posted_at, type, vendor, amount_cents, tax_cents, account, notes, source, payment_method, ref_stock_event_id, ref_order_id, actor_user_key, created_at)
+        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(postedAt, type, vendor, Math.round(amountCents), Math.round(taxCents), account, notes, source, paymentMethod, refStockEventId, refOrderId, actorUserKey, Date.now());
     return db.prepare('SELECT * FROM transactions WHERE id = ?').get(Number(info.lastInsertRowid));
 }
 
