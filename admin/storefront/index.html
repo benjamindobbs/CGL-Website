@@ -80,8 +80,8 @@
             <div class="form-group">
                 <label>Payment Method</label>
                 <div class="segmented" id="payment-method-group">
-                    <label><input type="radio" name="payment-method" value="cash" checked> Cash</label>
-                    <label><input type="radio" name="payment-method" value="online"> Online</label>
+                    <label><input type="radio" name="payment-method" value="cash" required> Cash</label>
+                    <label><input type="radio" name="payment-method" value="online" required> Online</label>
                 </div>
             </div>
 
@@ -137,10 +137,17 @@
                 if (!uuid) { uuidInput.focus(); return; }
                 if (!Number.isInteger(qty) || qty <= 0) { qtyInput.focus(); return; }
 
-                const paymentMethod = document.querySelector('input[name="payment-method"]:checked').value;
+                const paymentMethodInput = document.querySelector('input[name="payment-method"]:checked');
+                if (!paymentMethodInput) {
+                    resultEl.style.display = '';
+                    resultEl.style.color = '#c0392b';
+                    resultEl.innerText = 'Select a payment method (Cash or Online).';
+                    return;
+                }
+
                 const res = await authFetch('/api/inventory/storefront-sale', {
                     method: 'POST',
-                    body: JSON.stringify({ uuid, qty, paymentMethod }),
+                    body: JSON.stringify({ uuid, qty, paymentMethod: paymentMethodInput.value }),
                 });
                 const data = await res.json();
 
