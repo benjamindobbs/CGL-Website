@@ -113,6 +113,12 @@ router.get('/income-by-category', (_req, res) => {
 // what should be in it. Amounts are GROSS (tax-inclusive): that's the actual
 // money that changed hands, which is what a drawer count reconciles against.
 // Online-store (Stripe) orders are a separate rail and are not included.
+//
+// Filtered by payment_method rather than source='storefront_sale': a manual
+// correction to a register sale is recorded with source='adjustment' (see
+// recordTransaction), but it still carries the original row's payment_method,
+// so it must count here too for the drawer to net out correctly. Stripe rows
+// always have payment_method = '' and are excluded either way.
 router.get('/register-reconciliation', (req, res) => {
     const date = /^\d{4}-\d{2}-\d{2}$/.test(req.query.date || '') ? req.query.date : etDate(Date.now());
     const fromMs = dayBound(date);
@@ -122,7 +128,7 @@ router.get('/register-reconciliation', (req, res) => {
         SELECT account AS category, payment_method AS paymentMethod,
                SUM(CASE WHEN type = 'withdrawal' THEN -amount_cents ELSE amount_cents END) AS cents
         FROM transactions
-        WHERE source = 'storefront_sale' AND posted_at >= ? AND posted_at <= ?
+        WHERE payment_method IN ('cash', 'online') AND posted_at >= ? AND posted_at <= ?
         GROUP BY account, payment_method
     `).all(fromMs, toMs);
 
