@@ -11,6 +11,31 @@
     <link rel="stylesheet" href="/main.css">
     <link rel="stylesheet"
         href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+
+    <style>
+        /* Keep the Job & Description column readable: a bounded cell with the
+           free-text description in its own scrollable box so a long write-up
+           doesn't stretch or squash the row. */
+        .job-desc-cell {
+            min-width: 240px;
+            max-width: 340px;
+        }
+
+        .job-desc-cell .desc-box {
+            margin-top: 4px;
+            max-height: 7.5em;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+            font-size: 0.8rem;
+            line-height: 1.4;
+            color: #555;
+            background: #F9F9F9;
+            border: 1px solid #eee;
+            border-radius: 8px;
+            padding: 6px 8px;
+        }
+    </style>
 </head>
 
 <body class="form-page admin-page">
@@ -143,7 +168,7 @@
                         <tr>
                             <td>${new Date(r.created_at).toLocaleString()}</td>
                             <td>${esc(r.requester_name)}<br><small>${esc(r.email)}</small></td>
-                            <td><strong>${esc(r.job_name)}</strong>${r.description ? `<br><small>${esc(r.description)}</small>` : ''}</td>
+                            <td class="job-desc-cell"><strong>${esc(r.job_name)}</strong>${r.description ? `<div class="desc-box">${esc(r.description)}</div>` : ''}</td>
                             <td>${esc(r.building || '—')}</td>
                             <td>${esc(r.phone || '—')}</td>
                             <td>${esc(r.category)}</td>
