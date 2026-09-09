@@ -1,6 +1,7 @@
 const { Router } = require('express');
 const { db, ITEM_CATEGORIES, CT_TAX_RATE } = require('../db');
 const { requireStaff } = require('../staffAuth');
+const { dayBound, etDate } = require('../etDate');
 
 const router = Router();
 router.use(requireStaff);
@@ -104,6 +105,62 @@ router.get('/income-by-category', (_req, res) => {
     );
 
     res.json({ categories, totals });
+});
+
+// Storefront counter sales for one ET calendar day (default: today), broken
+// down by category and by how it was tendered (cash vs. Venmo/CashApp
+// "online") — so register staff can count the cash drawer against exactly
+// what should be in it. Amounts are GROSS (tax-inclusive): that's the actual
+// money that changed hands, which is what a drawer count reconciles against.
+// Online-store (Stripe) orders are a separate rail and are not included.
+//
+// Filtered by payment_method rather than source='storefront_sale': a manual
+// correction to a register sale is recorded with source='adjustment' (see
+// recordTransaction), but it still carries the original row's payment_method,
+// so it must count here too for the drawer to net out correctly. Stripe rows
+// always have payment_method = '' and are excluded either way.
+router.get('/register-reconciliation', (req, res) => {
+    const date = /^\d{4}-\d{2}-\d{2}$/.test(req.query.date || '') ? req.query.date : etDate(Date.now());
+    const fromMs = dayBound(date);
+    const toMs = dayBound(date, true);
+
+    const rows = db.prepare(`
+        SELECT account AS category, payment_method AS paymentMethod,
+               SUM(CASE WHEN type = 'withdrawal' THEN -amount_cents ELSE amount_cents END) AS cents
+        FROM transactions
+        WHERE payment_method IN ('cash', 'online') AND posted_at >= ? AND posted_at <= ?
+        GROUP BY account, payment_method
+    `).all(fromMs, toMs);
+
+    const byCategory = new Map();
+    const bucket = (name) => {
+        if (!byCategory.has(name)) {
+            byCategory.set(name, { category: name, cashCents: 0, onlineCents: 0, otherCents: 0 });
+        }
+        return byCategory.get(name);
+    };
+    for (const name of ITEM_CATEGORIES) bucket(name);
+
+    for (const row of rows) {
+        const cat = bucket(row.category);
+        if (row.paymentMethod === 'cash') cat.cashCents += row.cents;
+        else if (row.paymentMethod === 'online') cat.onlineCents += row.cents;
+        else cat.otherCents += row.cents;
+    }
+
+    const withTotal = (c) => ({ ...c, totalCents: c.cashCents + c.onlineCents + c.otherCents });
+    const categories = [...byCategory.values()].map(withTotal);
+    const totals = categories.reduce(
+        (acc, c) => ({
+            cashCents: acc.cashCents + c.cashCents,
+            onlineCents: acc.onlineCents + c.onlineCents,
+            otherCents: acc.otherCents + c.otherCents,
+            totalCents: acc.totalCents + c.totalCents,
+        }),
+        { cashCents: 0, onlineCents: 0, otherCents: 0, totalCents: 0 }
+    );
+
+    res.json({ date, categories, totals });
 });
 
 module.exports = router;

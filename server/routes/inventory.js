@@ -28,10 +28,13 @@ router.post('/restock', (req, res) => {
 });
 
 router.post('/storefront-sale', (req, res) => {
-    const { uuid, qty } = req.body;
+    const { uuid, qty, paymentMethod } = req.body;
     const quantity = Number.isFinite(Number(qty)) && qty !== '' ? Number(qty) : 1;
     if (!uuid) return res.status(400).json({ error: 'Missing item UUID' });
     if (!Number.isInteger(quantity) || quantity <= 0) return res.status(400).json({ error: 'Quantity must be a positive whole number' });
+    if (paymentMethod !== 'cash' && paymentMethod !== 'online') {
+        return res.status(400).json({ error: "paymentMethod must be 'cash' or 'online'" });
+    }
 
     const item = findItem(uuid);
     if (!item) return res.status(404).json({ error: 'No item found for that UUID' });
@@ -53,6 +56,7 @@ router.post('/storefront-sale', (req, res) => {
         account: item.category,
         notes: `${item.name}${variantLabel(item)} x${quantity}`,
         source: 'storefront_sale',
+        paymentMethod,
         refStockEventId: stockEventId,
         actorUserKey: req.userKey,
     });

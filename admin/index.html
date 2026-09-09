@@ -86,6 +86,31 @@
                 </a>
             </div>
 
+            <h2 style="margin-top:40px;">Register Reconciliation</h2>
+            <p class="field-note">Storefront counter sales only, by category and how they were
+                tendered. Amounts are <strong>gross</strong> (include sales tax) &mdash; that's the
+                actual cash/Venmo/CashApp money that should be in the drawer. Online-store orders
+                (Stripe) aren't counter sales and are not included here.</p>
+            <div class="form-group" style="max-width:200px;">
+                <label for="reconciliation-date">Date</label>
+                <input type="date" id="reconciliation-date">
+            </div>
+            <p id="reconciliation-status" class="placeholder-text">Loading totals&hellip;</p>
+            <div style="overflow-x:auto;">
+                <table class="admin-table" id="reconciliation-table" style="display:none;">
+                    <thead>
+                        <tr>
+                            <th>Category</th>
+                            <th>Cash</th>
+                            <th>Online</th>
+                            <th>Total</th>
+                        </tr>
+                    </thead>
+                    <tbody id="reconciliation-tbody"></tbody>
+                    <tfoot id="reconciliation-tfoot"></tfoot>
+                </table>
+            </div>
+
             <h2 style="margin-top:40px;">Income by Category</h2>
             <p class="field-note">Amounts are revenue <strong>net of CT sales tax</strong>. The Sales Tax
                 column is the 6.35% collected and owed to the state. Items in a &ldquo;Supplies&rdquo;
@@ -121,6 +146,46 @@
             const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => (
                 { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]
             ));
+
+            async function loadReconciliation() {
+                const statusEl = document.getElementById('reconciliation-status');
+                const table = document.getElementById('reconciliation-table');
+                const dateInput = document.getElementById('reconciliation-date');
+                try {
+                    const q = dateInput.value ? `?date=${encodeURIComponent(dateInput.value)}` : '';
+                    const res = await authFetch(`/api/reports/register-reconciliation${q}`);
+                    if (!res.ok) throw new Error('request failed');
+                    const { date, categories, totals } = await res.json();
+
+                    // First load: no date was picked yet, so adopt the server's
+                    // default (today in America/New_York) instead of guessing
+                    // the store's "today" from the browser's local clock/zone.
+                    if (!dateInput.value) dateInput.value = date;
+
+                    document.getElementById('reconciliation-tbody').innerHTML = categories.map((c) => `
+                        <tr>
+                            <td>${esc(c.category)}</td>
+                            <td>${money(c.cashCents)}</td>
+                            <td>${money(c.onlineCents)}</td>
+                            <td><strong>${money(c.totalCents)}</strong></td>
+                        </tr>`).join('');
+
+                    document.getElementById('reconciliation-tfoot').innerHTML = `
+                        <tr>
+                            <th>All categories</th>
+                            <th>${money(totals.cashCents)}</th>
+                            <th>${money(totals.onlineCents)}</th>
+                            <th>${money(totals.totalCents)}</th>
+                        </tr>
+                    `;
+
+                    statusEl.style.display = 'none';
+                    table.style.display = '';
+                } catch (err) {
+                    console.error('Failed to load register reconciliation:', err);
+                    statusEl.innerText = 'Could not load totals. Please refresh.';
+                }
+            }
 
             async function loadIncome() {
                 const statusEl = document.getElementById('income-status');
@@ -168,6 +233,8 @@
                 }
             }
 
+            document.getElementById('reconciliation-date').addEventListener('change', loadReconciliation);
+            loadReconciliation();
             loadIncome();
         });
     </script>
