@@ -11,6 +11,24 @@ html {
 
 
 
+/* Material Symbols base. The Google Fonts css2 endpoint only ships @font-face,
+   not the helper class, so without this the icon <span>s have no metrics and,
+   on browsers that don't auto-form the `liga` ligature (notably some mobile
+   WebKit/WebView) or before the web font loads, the raw keyword text
+   ("qr_code_scanner", "point_of_sale", ...) renders instead of the glyph and
+   blows out the width of every icon button. font-size is intentionally left to
+   inherit so existing per-context sizing is unaffected. */
+.material-symbols-outlined {
+    display: inline-block;
+    line-height: 1;
+    white-space: nowrap;
+    word-wrap: normal;
+    direction: ltr;
+    -webkit-font-feature-settings: 'liga';
+    font-feature-settings: 'liga';
+    -webkit-font-smoothing: antialiased;
+}
+
 /* Public site top nav wrapper */
 .nav-container {
     position: relative;
@@ -1150,8 +1168,24 @@ nav a.staff-only {
     padding: 0 16px;
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 6px;
     white-space: nowrap;
+}
+
+/* On narrow screens the fixed-width Scan button crushes the UUID input (its
+   own padding then overruns what's left, so the text sits under the button).
+   Stack them instead: full-width input above, full-width button below. */
+@media (max-width: 560px) {
+    .input-with-action {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .scan-btn.secondary-btn {
+        width: 100%;
+        padding: 12px 16px;
+    }
 }
 
 /* Camera QR scanner overlay (scripts/qr-scan.js) */
