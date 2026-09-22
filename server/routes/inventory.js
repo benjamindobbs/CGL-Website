@@ -18,7 +18,7 @@ router.post('/restock', (req, res) => {
     const { uuid, qty } = req.body;
     const quantity = Number(qty);
     if (!uuid) return res.status(400).json({ error: 'Missing item UUID' });
-    if (!Number.isInteger(quantity) || quantity <= 0) return res.status(400).json({ error: 'Quantity must be a positive whole number' });
+    if (!Number.isInteger(quantity) || quantity === 0) return res.status(400).json({ error: 'Quantity must be a non-zero whole number' });
 
     const item = findItem(uuid);
     if (!item) return res.status(404).json({ error: 'No item found for that UUID' });

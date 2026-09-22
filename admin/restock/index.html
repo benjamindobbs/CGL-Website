@@ -55,7 +55,7 @@
 
         <div class="order-form" id="staff-ui" style="display:none;">
             <h2>Restock</h2>
-            <p>Scan (or type) an item's UUID, enter the quantity received, and add it to stock.</p>
+            <p>Scan (or type) an item's UUID, enter the quantity received, and add it to stock. Enter a negative number to remove stock without a transaction (e.g. damaged or lost items).</p>
 
             <div class="form-group">
                 <label for="uuid">Item UUID</label>
@@ -70,7 +70,7 @@
 
             <div class="form-group">
                 <label for="qty">Quantity to Add</label>
-                <input type="number" id="qty" value="1" min="1">
+                <input type="number" id="qty" value="1">
             </div>
 
             <p id="result" style="display:none;font-weight:600;"></p>
@@ -115,7 +115,11 @@
                 resultEl.style.display = 'none';
 
                 if (!uuid) { uuidInput.focus(); return; }
-                if (!Number.isInteger(qty) || qty <= 0) { qtyInput.focus(); return; }
+                if (!Number.isInteger(qty) || qty === 0) { qtyInput.focus(); return; }
+
+                if (qty < 0 && !confirm(`This will remove ${Math.abs(qty)} from stock without recording a transaction. Continue?`)) {
+                    return;
+                }
 
                 const res = await authFetch('/api/inventory/restock', {
                     method: 'POST',
