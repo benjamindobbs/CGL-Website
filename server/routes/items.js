@@ -49,6 +49,14 @@ router.get('/admin', requireStaff, (_req, res) => {
     res.json(rows);
 });
 
+// Staff-only: single item lookup by UUID, for scan-driven flows (register
+// storefront sale) that need a name/price to show before committing.
+router.get('/:uuid', requireStaff, (req, res) => {
+    const item = getItem(req.params.uuid);
+    if (!item) return res.status(404).json({ error: 'No item found for that UUID' });
+    res.json(item);
+});
+
 router.post('/', requireStaff, (req, res) => {
     const { name, uuid, category, subcategoryId, variantColor, variantSize, priceCents, detail, startingStock, orderable, newColors } = req.body;
     if (!name) return res.status(400).json({ error: 'Missing item name' });
