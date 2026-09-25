@@ -233,6 +233,11 @@ db.exec(`
     --                  online_order/adjustment rows, which move through Stripe,
     --                  a completely separate rail already identified by
     --                  vendor/source and out of scope for this reconciliation.
+    --   location: physical point of sale for a counter sale — 'storefront' or
+    --                  'cart' (a mobile sales cart taken to games/events).
+    --                  Staff pick it at time of sale, same as payment_method.
+    --                  Only meaningful for source='storefront_sale' — '' (not
+    --                  applicable) for online_order/adjustment rows.
     CREATE TABLE IF NOT EXISTS transactions (
         id                 INTEGER PRIMARY KEY AUTOINCREMENT,
         posted_at          INTEGER NOT NULL,
@@ -244,6 +249,7 @@ db.exec(`
         notes              TEXT    NOT NULL DEFAULT '',
         source             TEXT    NOT NULL CHECK(source IN ('storefront_sale','online_order','adjustment')),
         payment_method     TEXT    NOT NULL DEFAULT '',
+        location           TEXT    NOT NULL DEFAULT '',
         ref_stock_event_id INTEGER,
         ref_order_id       INTEGER,
         actor_user_key     TEXT    NOT NULL DEFAULT '',
@@ -301,7 +307,7 @@ function normalizeCategory(value) {
 // --- Schema migrations -------------------------------------------------------
 // Bump SCHEMA_VERSION and add a matching `if (fromVersion < N)` block for each
 // change. PRAGMA user_version persists in the DB file, so each block runs once.
-const SCHEMA_VERSION = 8;
+const SCHEMA_VERSION = 9;
 const fromVersion = db.prepare('PRAGMA user_version').get().user_version;
 
 // True when the table already has the given column (used to make ADD COLUMN
@@ -464,6 +470,20 @@ if (fromVersion < 8) {
     db.exec("UPDATE transactions SET payment_method = '' WHERE source != 'storefront_sale'");
 }
 
+// Guarded by column presence, not just fromVersion < 9: two processes racing
+// this migration against the same DB file can leave user_version bumped to 9
+// on one connection while another's ADD COLUMN never lands (observed during
+// development). ADD COLUMN is additive/idempotent, so it's safe to re-check
+// on every boot regardless of the stored version.
+if (!tableHasColumn('transactions', 'location')) {
+    // Location (Storefront / Cart): where a counter sale physically happened,
+    // tracked alongside payment_method for register reconciliation. Every
+    // existing storefront_sale row predates the mobile Cart, so it was rung up
+    // at the storefront.
+    db.exec("ALTER TABLE transactions ADD COLUMN location TEXT NOT NULL DEFAULT ''");
+    db.exec("UPDATE transactions SET location = 'storefront' WHERE source = 'storefront_sale'");
+}
+
 if (fromVersion < SCHEMA_VERSION) {
     db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`);
 }
@@ -515,13 +535,13 @@ function applyStockDelta({ itemUuid, delta, reason, actorUserKey, note = '', ref
 // report. Returns the stored row.
 function recordTransaction({
     postedAt = Date.now(), type, vendor, amountCents, taxCents = 0, account = '', notes = '',
-    source, paymentMethod = '', refStockEventId = null, refOrderId = null, actorUserKey = '',
+    source, paymentMethod = '', location = '', refStockEventId = null, refOrderId = null, actorUserKey = '',
 }) {
     const info = db.prepare(`
         INSERT INTO transactions
-            (posted_at, type, vendor, amount_cents, tax_cents, account, notes, source, payment_method, ref_stock_event_id, ref_order_id, actor_user_key, created_at)
-        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(postedAt, type, vendor, Math.round(amountCents), Math.round(taxCents), account, notes, source, paymentMethod, refStockEventId, refOrderId, actorUserKey, Date.now());
+            (posted_at, type, vendor, amount_cents, tax_cents, account, notes, source, payment_method, location, ref_stock_event_id, ref_order_id, actor_user_key, created_at)
+        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(postedAt, type, vendor, Math.round(amountCents), Math.round(taxCents), account, notes, source, paymentMethod, location, refStockEventId, refOrderId, actorUserKey, Date.now());
     return db.prepare('SELECT * FROM transactions WHERE id = ?').get(Number(info.lastInsertRowid));
 }
 

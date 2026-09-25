@@ -56,11 +56,12 @@
         <div id="staff-ui" style="display:none;">
             <h1>Transaction Log</h1>
             <p class="field-note" style="margin-bottom:24px;">
-                Every purchase made through the Storefront or the online store. Payment Method
-                (Cash / Online) marks how each Storefront sale was tendered at the register &mdash;
-                Online covers Venmo, CashApp, etc. &mdash; so the cash drawer can be reconciled on
-                its own. Online store orders go through Stripe, a separate rail, and show no
-                Payment Method here.
+                Every purchase made through the Storefront, the mobile Cart, or the online store.
+                Payment Method (Cash / Online) marks how each counter sale was tendered at the
+                register &mdash; Online covers Venmo, CashApp, etc. Location marks where it was rung
+                up (Storefront or Cart) &mdash; so each drawer can be reconciled on its own. Online
+                store orders go through Stripe, a separate rail, and show no Payment Method or
+                Location here.
             </p>
 
             <div class="config-card">
@@ -90,6 +91,14 @@
                             <option value="online">Online</option>
                         </select>
                     </div>
+                    <div class="form-group">
+                        <label for="location">Location</label>
+                        <select id="location">
+                            <option value="">All locations</option>
+                            <option value="storefront">Storefront</option>
+                            <option value="cart">Cart</option>
+                        </select>
+                    </div>
                     <div class="txn-filter-actions">
                         <button type="button" id="apply-btn" class="secondary-btn">Apply</button>
                         <button type="button" id="export-btn" class="submit-btn">
@@ -113,6 +122,7 @@
                             <th>Net</th>
                             <th>Account</th>
                             <th>Payment</th>
+                            <th>Location</th>
                             <th>Notes</th>
                         </tr>
                     </thead>
@@ -148,6 +158,7 @@
                 if ($('to').value) p.set('to', $('to').value);
                 if ($('account').value) p.set('account', $('account').value);
                 if ($('payment-method').value) p.set('paymentMethod', $('payment-method').value);
+                if ($('location').value) p.set('location', $('location').value);
                 const s = p.toString();
                 return s ? `?${s}` : '';
             }
@@ -170,6 +181,7 @@
                             <td>${money(signedCents(t) - signedTax(t))}</td>
                             <td>${esc(t.account)}</td>
                             <td>${t.payment_method ? `<span class="status-badge pay-${t.payment_method}">${t.payment_method === 'online' ? 'Online' : 'Cash'}</span>` : '&mdash;'}</td>
+                            <td>${t.location ? `<span class="status-badge loc-${t.location}">${t.location === 'cart' ? 'Cart' : 'Storefront'}</span>` : '&mdash;'}</td>
                             <td>${esc(t.notes)}</td>
                         </tr>
                     `).join('');
@@ -212,7 +224,7 @@
 
             $('apply-btn').addEventListener('click', load);
             $('export-btn').addEventListener('click', exportCsv);
-            [$('from'), $('to'), $('account'), $('payment-method')].forEach((el) => {
+            [$('from'), $('to'), $('account'), $('payment-method'), $('location')].forEach((el) => {
                 el.addEventListener('change', load);
             });
 

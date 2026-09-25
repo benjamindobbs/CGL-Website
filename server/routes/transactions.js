@@ -7,7 +7,7 @@ const { dayBound, etDate } = require('../etDate');
 const router = Router();
 router.use(requireStaff);
 
-function queryTransactions({ from, to, account, paymentMethod }) {
+function queryTransactions({ from, to, account, paymentMethod, location }) {
     const where = [];
     const params = [];
     const fromMs = dayBound(from);
@@ -18,9 +18,12 @@ function queryTransactions({ from, to, account, paymentMethod }) {
     if (paymentMethod === 'cash' || paymentMethod === 'online') {
         where.push('payment_method = ?'); params.push(paymentMethod);
     }
+    if (location === 'storefront' || location === 'cart') {
+        where.push('location = ?'); params.push(location);
+    }
 
     const sql = `
-        SELECT id, posted_at, type, vendor, amount_cents, tax_cents, account, notes, source, payment_method, ref_order_id
+        SELECT id, posted_at, type, vendor, amount_cents, tax_cents, account, notes, source, payment_method, location, ref_order_id
         FROM transactions
         ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
         ORDER BY posted_at DESC, id DESC
@@ -37,7 +40,7 @@ function signedDollars(row, cents = row.amount_cents) {
 
 // Amount is the gross (tax-inclusive) money moved; Tax is the CT sales tax
 // portion inside it; Net = Amount - Tax is the revenue.
-const CSV_HEADERS = ['Posted Date', 'Type', 'Vendor', 'Amount', 'Tax', 'Net', 'Account', 'Payment Method', 'Notes'];
+const CSV_HEADERS = ['Posted Date', 'Type', 'Vendor', 'Amount', 'Tax', 'Net', 'Account', 'Payment Method', 'Location', 'Notes'];
 
 router.get('/', (req, res) => {
     res.json(queryTransactions(req.query));
@@ -54,6 +57,7 @@ router.get('/export.csv', (req, res) => {
         signedDollars(t, t.amount_cents - t.tax_cents),
         t.account,
         t.payment_method === 'cash' ? 'Cash' : t.payment_method === 'online' ? 'Online' : '',
+        t.location === 'storefront' ? 'Storefront' : t.location === 'cart' ? 'Cart' : '',
         t.notes,
     ]));
 

@@ -812,6 +812,14 @@ nav a.staff-only {
     border-bottom: none;
 }
 
+.reconciliation-group-head {
+    text-align: center;
+}
+
+.reconciliation-group-start {
+    border-left: 2px solid #e5e5e5;
+}
+
 /* Bulk variant creation (Item Catalog -> Add New Item) */
 .field-note {
     display: block;
@@ -1009,6 +1017,9 @@ nav a.staff-only {
 
 .pay-cash { background: rgba(39, 174, 96, 0.15); color: #27ae60; }
 .pay-online { background: rgba(27, 117, 187, 0.1); color: #1B75BB; }
+
+.loc-storefront { background: rgba(155, 89, 182, 0.15); color: #8e44ad; }
+.loc-cart { background: rgba(230, 126, 34, 0.15); color: #d35400; }
 
 @keyframes pulse {
     0% { transform: scale(1); opacity: 1; }

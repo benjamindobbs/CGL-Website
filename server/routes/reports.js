@@ -108,34 +108,44 @@ router.get('/income-by-category', (_req, res) => {
 });
 
 // Storefront counter sales for one ET calendar day (default: today), broken
-// down by category and by how it was tendered (cash vs. Venmo/CashApp
-// "online") — so register staff can count the cash drawer against exactly
-// what should be in it. Amounts are GROSS (tax-inclusive): that's the actual
-// money that changed hands, which is what a drawer count reconciles against.
-// Online-store (Stripe) orders are a separate rail and are not included.
+// down by category, by where the sale happened (storefront vs. the mobile
+// cart), and by how it was tendered (cash vs. Venmo/CashApp "online") — so
+// register staff can count each drawer against exactly what should be in it.
+// Amounts are GROSS (tax-inclusive): that's the actual money that changed
+// hands, which is what a drawer count reconciles against. Online-store
+// (Stripe) orders are a separate rail and are not included.
 //
 // Filtered by payment_method rather than source='storefront_sale': a manual
 // correction to a register sale is recorded with source='adjustment' (see
-// recordTransaction), but it still carries the original row's payment_method,
-// so it must count here too for the drawer to net out correctly. Stripe rows
-// always have payment_method = '' and are excluded either way.
+// recordTransaction), but it still carries the original row's payment_method
+// and location, so it must count here too for the drawer to net out
+// correctly. Stripe rows always have payment_method = '' and are excluded
+// either way.
+const LOCATIONS = ['storefront', 'cart'];
+
 router.get('/register-reconciliation', (req, res) => {
     const date = /^\d{4}-\d{2}-\d{2}$/.test(req.query.date || '') ? req.query.date : etDate(Date.now());
     const fromMs = dayBound(date);
     const toMs = dayBound(date, true);
 
     const rows = db.prepare(`
-        SELECT account AS category, payment_method AS paymentMethod,
+        SELECT account AS category, payment_method AS paymentMethod, location,
                SUM(CASE WHEN type = 'withdrawal' THEN -amount_cents ELSE amount_cents END) AS cents
         FROM transactions
         WHERE payment_method IN ('cash', 'online') AND posted_at >= ? AND posted_at <= ?
-        GROUP BY account, payment_method
+        GROUP BY account, payment_method, location
     `).all(fromMs, toMs);
 
+    const emptyLocation = () => ({ cashCents: 0, onlineCents: 0, totalCents: 0 });
     const byCategory = new Map();
     const bucket = (name) => {
         if (!byCategory.has(name)) {
-            byCategory.set(name, { category: name, cashCents: 0, onlineCents: 0, otherCents: 0 });
+            byCategory.set(name, {
+                category: name,
+                storefront: emptyLocation(),
+                cart: emptyLocation(),
+                totalCents: 0,
+            });
         }
         return byCategory.get(name);
     };
@@ -143,21 +153,30 @@ router.get('/register-reconciliation', (req, res) => {
 
     for (const row of rows) {
         const cat = bucket(row.category);
-        if (row.paymentMethod === 'cash') cat.cashCents += row.cents;
-        else if (row.paymentMethod === 'online') cat.onlineCents += row.cents;
-        else cat.otherCents += row.cents;
+        // A row with a real tender but no location predates the Cart feature
+        // and was rung up at the storefront (see db.js v9 migration); fold any
+        // stray one the same way so the drawer still nets out.
+        const loc = cat[row.location] ? cat[row.location] : cat.storefront;
+        if (row.paymentMethod === 'cash') loc.cashCents += row.cents;
+        else loc.onlineCents += row.cents;
     }
 
-    const withTotal = (c) => ({ ...c, totalCents: c.cashCents + c.onlineCents + c.otherCents });
-    const categories = [...byCategory.values()].map(withTotal);
+    const categories = [...byCategory.values()].map((c) => {
+        for (const loc of LOCATIONS) c[loc].totalCents = c[loc].cashCents + c[loc].onlineCents;
+        return { ...c, totalCents: c.storefront.totalCents + c.cart.totalCents };
+    });
+
     const totals = categories.reduce(
-        (acc, c) => ({
-            cashCents: acc.cashCents + c.cashCents,
-            onlineCents: acc.onlineCents + c.onlineCents,
-            otherCents: acc.otherCents + c.otherCents,
-            totalCents: acc.totalCents + c.totalCents,
-        }),
-        { cashCents: 0, onlineCents: 0, otherCents: 0, totalCents: 0 }
+        (acc, c) => {
+            for (const loc of LOCATIONS) {
+                acc[loc].cashCents += c[loc].cashCents;
+                acc[loc].onlineCents += c[loc].onlineCents;
+                acc[loc].totalCents += c[loc].totalCents;
+            }
+            acc.totalCents += c.totalCents;
+            return acc;
+        },
+        { storefront: emptyLocation(), cart: emptyLocation(), totalCents: 0 }
     );
 
     res.json({ date, categories, totals });

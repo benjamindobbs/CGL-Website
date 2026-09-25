@@ -87,10 +87,10 @@
             </div>
 
             <h2 style="margin-top:40px;">Register Reconciliation</h2>
-            <p class="field-note">Storefront counter sales only, by category and how they were
-                tendered. Amounts are <strong>gross</strong> (include sales tax) &mdash; that's the
-                actual cash/Venmo/CashApp money that should be in the drawer. Online-store orders
-                (Stripe) aren't counter sales and are not included here.</p>
+            <p class="field-note">Storefront counter sales only, by category, sale location, and how
+                they were tendered. Amounts are <strong>gross</strong> (include sales tax) &mdash;
+                that's the actual cash/Venmo/CashApp money that should be in each drawer. Online-store
+                orders (Stripe) aren't counter sales and are not included here.</p>
             <div class="form-group" style="max-width:200px;">
                 <label for="reconciliation-date">Date</label>
                 <input type="date" id="reconciliation-date">
@@ -100,10 +100,18 @@
                 <table class="admin-table" id="reconciliation-table" style="display:none;">
                     <thead>
                         <tr>
-                            <th>Category</th>
+                            <th rowspan="2">Category</th>
+                            <th colspan="3" class="reconciliation-group-head">Storefront</th>
+                            <th colspan="3" class="reconciliation-group-head reconciliation-group-start">Cart</th>
+                            <th rowspan="2">Total</th>
+                        </tr>
+                        <tr>
                             <th>Cash</th>
                             <th>Online</th>
-                            <th>Total</th>
+                            <th>Subtotal</th>
+                            <th class="reconciliation-group-start">Cash</th>
+                            <th>Online</th>
+                            <th>Subtotal</th>
                         </tr>
                     </thead>
                     <tbody id="reconciliation-tbody"></tbody>
@@ -165,16 +173,24 @@
                     document.getElementById('reconciliation-tbody').innerHTML = categories.map((c) => `
                         <tr>
                             <td>${esc(c.category)}</td>
-                            <td>${money(c.cashCents)}</td>
-                            <td>${money(c.onlineCents)}</td>
+                            <td>${money(c.storefront.cashCents)}</td>
+                            <td>${money(c.storefront.onlineCents)}</td>
+                            <td><strong>${money(c.storefront.totalCents)}</strong></td>
+                            <td class="reconciliation-group-start">${money(c.cart.cashCents)}</td>
+                            <td>${money(c.cart.onlineCents)}</td>
+                            <td><strong>${money(c.cart.totalCents)}</strong></td>
                             <td><strong>${money(c.totalCents)}</strong></td>
                         </tr>`).join('');
 
                     document.getElementById('reconciliation-tfoot').innerHTML = `
                         <tr>
                             <th>All categories</th>
-                            <th>${money(totals.cashCents)}</th>
-                            <th>${money(totals.onlineCents)}</th>
+                            <th>${money(totals.storefront.cashCents)}</th>
+                            <th>${money(totals.storefront.onlineCents)}</th>
+                            <th>${money(totals.storefront.totalCents)}</th>
+                            <th class="reconciliation-group-start">${money(totals.cart.cashCents)}</th>
+                            <th>${money(totals.cart.onlineCents)}</th>
+                            <th>${money(totals.cart.totalCents)}</th>
                             <th>${money(totals.totalCents)}</th>
                         </tr>
                     `;

@@ -85,6 +85,14 @@
                 </div>
             </div>
 
+            <div class="form-group">
+                <label>Location</label>
+                <div class="segmented" id="location-group">
+                    <label><input type="radio" name="location" value="storefront" required> Storefront</label>
+                    <label><input type="radio" name="location" value="cart" required> Cart</label>
+                </div>
+            </div>
+
             <p id="result" style="display:none;font-weight:600;"></p>
 
             <button type="button" id="sale-btn" class="submit-btn">
@@ -145,9 +153,17 @@
                     return;
                 }
 
+                const locationInput = document.querySelector('input[name="location"]:checked');
+                if (!locationInput) {
+                    resultEl.style.display = '';
+                    resultEl.style.color = '#c0392b';
+                    resultEl.innerText = 'Select a location (Storefront or Cart).';
+                    return;
+                }
+
                 const res = await authFetch('/api/inventory/storefront-sale', {
                     method: 'POST',
-                    body: JSON.stringify({ uuid, qty, paymentMethod: paymentMethodInput.value }),
+                    body: JSON.stringify({ uuid, qty, paymentMethod: paymentMethodInput.value, location: locationInput.value }),
                 });
                 const data = await res.json();
 
@@ -157,6 +173,8 @@
                     resultEl.innerText = `${data.name} (${[data.variant_color, data.variant_size].filter(Boolean).join(' / ')}) is now at ${data.stock_qty} in stock.`;
                     uuidInput.value = '';
                     qtyInput.value = 1;
+                    paymentMethodInput.checked = false;
+                    locationInput.checked = false;
                 } else {
                     resultEl.style.color = '#c0392b';
                     resultEl.innerText = data.error || 'Sale failed.';
