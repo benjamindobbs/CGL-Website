@@ -109,6 +109,25 @@ nav a.staff-only {
     color: #1B75BB;
 }
 
+/* HoCo tickets: a pink pill among the nav tabs (colors and pulse come from
+   .btn-hoco). */
+nav a.nav-hoco,
+nav a.nav-hoco:hover,
+nav a.nav-hoco[aria-current="page"] {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 14px;
+    border: none;
+    border-radius: 999px;
+    color: #fff;
+    font-weight: 700;
+}
+
+nav a.nav-hoco .material-symbols-outlined {
+    font-size: 20px;
+}
+
 
 /* Carousel — a contained hero strip on the home page (was a fixed, centered
    square; now it flows inside .home-hero). */
@@ -2213,7 +2232,7 @@ nav a.staff-only {
     background: rgba(27, 117, 187, 0.08);
 }
 
-/* Homepage "Buy HoCo Tickets" — bright pink with a soft pulsing halo. The
+/* "HoCo Tickets" nav button — bright pink with a soft pulsing halo. The
    halo is a box-shadow ring (no layout shift) that fades in and out at
    medium opacity. */
 .btn-hoco {
@@ -2574,7 +2593,15 @@ nav a.staff-only {
         radial-gradient(circle at 15% 90%, rgba(255, 122, 26, 0.25), transparent 30%),
         linear-gradient(160deg, var(--carnival-night) 0%, var(--carnival-sea) 100%);
     background-attachment: fixed;
-    min-height: 100%;
+    /* The global body rule pins height to 100% (one viewport), which cuts the
+       gradient off once the form scrolls past it; let the body grow instead. */
+    height: auto;
+    min-height: 100vh;
+}
+
+/* Behind the body (overscroll bounce, any gap) show night, not off-white. */
+html:has(.hoco-page) {
+    background-color: #1A0B3D;
 }
 
 .hoco {
@@ -2606,6 +2633,13 @@ nav a.staff-only {
     letter-spacing: 3px;
     text-transform: uppercase;
     font-size: 0.85rem;
+}
+
+.hoco-when {
+    margin: 10px 0 0;
+    color: var(--carnival-sun);
+    font-weight: 700;
+    font-size: 1.15rem;
 }
 
 /* Ticket stub: gentle idle bob, then lift + tilt + glow on hover. The art is
