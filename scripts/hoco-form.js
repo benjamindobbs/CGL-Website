@@ -42,7 +42,9 @@ async function loadTicket() {
             return;
         }
         if (status.canBuy <= 0) {
-            statusEl.innerText = `You’ve got your ${status.limit} tickets — see you at HoCo!`;
+            statusEl.innerText = status.limit === 1
+                ? 'You’ve got your ticket — see you at HoCo!'
+                : `You’ve got your ${status.limit} tickets — see you at HoCo!`;
             return;
         }
 
@@ -53,6 +55,8 @@ async function loadTicket() {
         document.getElementById('ticket-limit').innerText = status.purchased > 0
             ? `Limit ${status.limit} per person — you can buy ${status.canBuy} more.`
             : `Limit ${status.limit} per person.`;
+        // Nothing to pick when only one ticket is allowed.
+        document.getElementById('quantity-group').hidden = maxTickets <= 1;
         updateTotal();
 
         statusEl.hidden = true;

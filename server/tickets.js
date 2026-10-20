@@ -12,7 +12,7 @@ const { db } = require('./db');
 const { stripe, isStripeConfigured } = require('./stripe');
 
 const TICKET_PREFIX = 'ticket-';
-const TICKET_LIMIT_PER_ACCOUNT = 2;
+const TICKET_LIMIT_PER_ACCOUNT = 1;
 const TICKET_CHECKOUT_TTL_MS = 30 * 60 * 1000; // Stripe's minimum session lifetime
 
 function isTicket(itemUuid) {
@@ -114,7 +114,9 @@ function checkTicketLines(userKey, ticketLines) {
         const allowance = TICKET_LIMIT_PER_ACCOUNT - held;
         if (qty > allowance) {
             return allowance <= 0
-                ? `You already have the limit of ${TICKET_LIMIT_PER_ACCOUNT} ${item.name}s.`
+                ? TICKET_LIMIT_PER_ACCOUNT === 1
+                    ? `You already have your ${item.name}.`
+                    : `You already have the limit of ${TICKET_LIMIT_PER_ACCOUNT} ${item.name}s.`
                 : `Limit ${TICKET_LIMIT_PER_ACCOUNT} per person — you can buy ${allowance} more.`;
         }
         const available = availableStock(item.uuid);
