@@ -1,10 +1,11 @@
 const express = require('express');
 const path    = require('path');
 
-const { seedUniforms, seedTraditionLine, seedStaff, seedSubcategories, seedColors } = require('./seed');
+const { seedUniforms, seedTraditionLine, seedHocoTicket, seedStaff, seedSubcategories, seedColors } = require('./seed');
 const { sweepStaleUnpaidOrders } = require('./db');
 seedUniforms();
 seedTraditionLine();
+seedHocoTicket();
 seedSubcategories();
 seedColors();
 seedStaff();

@@ -3,6 +3,7 @@ const { db, applyStockDelta, recordTransaction, normalizeCategory, splitTaxInclu
 const { requireAuth } = require('../auth');
 const { requireStaff } = require('../staffAuth');
 const { stripe, isStripeConfigured, PUBLIC_BASE_URL } = require('../stripe');
+const { TICKET_CHECKOUT_TTL_MS, isTicket, ticketStatus, releaseOpenTicketCheckouts, checkTicketLines } = require('../tickets');
 
 const router = Router();
 
@@ -20,6 +21,10 @@ function linesFor(orderId) {
     `).all(orderId);
 }
 
+// Pages allowed to start a checkout; Stripe's "back" link returns the shopper
+// to whichever one they came from. Allowlisted so it can't become an open redirect.
+const RETURN_PATHS = ['/order/', '/hoco/'];
+
 function deleteOrder(orderId) {
     db.prepare('DELETE FROM order_items WHERE order_id = ?').run(orderId);
     db.prepare('DELETE FROM orders WHERE id = ?').run(orderId);
@@ -27,7 +32,8 @@ function deleteOrder(orderId) {
 
 // Any signed-in school account (not just staff) can place an order.
 router.post('/', requireAuth, async (req, res) => {
-    const { customerName, email, studentId, cart } = req.body;
+    const { customerName, email, studentId, cart, returnPath } = req.body;
+    const cancelPath = RETURN_PATHS.includes(returnPath) ? returnPath : '/order/';
     if (!customerName || !email) return res.status(400).json({ error: 'Missing name or email' });
     if (!Array.isArray(cart) || cart.length === 0) return res.status(400).json({ error: 'Cart is empty' });
 
@@ -41,7 +47,7 @@ router.post('/', requireAuth, async (req, res) => {
         if (!Number.isInteger(qty) || qty <= 0) return res.status(400).json({ error: `Invalid quantity for ${item.name}` });
         const lineTotalCents = item.price_cents * qty;
         // price_cents is tax-inclusive; pull the CT sales tax back out of the
-        // line total (0 for items in a "Supplies" sub-category).
+        // line total (0 for items in a "Supplies" or "Tickets" sub-category).
         const { taxCents } = splitTaxInclusive(lineTotalCents, !isSubcategoryTaxExempt(item.subcategory));
         lines.push({ item, qty, lineTotalCents, taxCents });
     }
@@ -53,6 +59,16 @@ router.post('/', requireAuth, async (req, res) => {
     // A paid order needs Stripe up before we create anything.
     if (totalCents > 0 && !isStripeConfigured()) {
         return res.status(503).json({ error: 'Online payment isn’t set up yet. Please contact the school store.' });
+    }
+
+    // Tickets are capped (sell-out + per-account limit; see tickets.js). Release
+    // this shopper's own abandoned ticket checkouts first, then check — and
+    // keep the check and the INSERT below free of any `await` between them.
+    const ticketLines = lines.filter((l) => isTicket(l.item.uuid));
+    if (ticketLines.length > 0) {
+        await releaseOpenTicketCheckouts(req.userKey);
+        const ticketError = checkTicketLines(req.userKey, ticketLines);
+        if (ticketError) return res.status(409).json({ error: ticketError });
     }
 
     const now = Date.now();
@@ -128,7 +144,11 @@ router.post('/', requireAuth, async (req, res) => {
             client_reference_id: String(orderId),
             metadata: { order_id: String(orderId) },
             success_url: `${PUBLIC_BASE_URL}/thanks/?order=${orderId}`,
-            cancel_url: `${PUBLIC_BASE_URL}/order/`,
+            cancel_url: `${PUBLIC_BASE_URL}${cancelPath}`,
+            // Ticket checkouts hold seats, so let abandoned ones lapse quickly.
+            ...(ticketLines.length > 0 && {
+                expires_at: Math.floor((Date.now() + TICKET_CHECKOUT_TTL_MS) / 1000) + 60,
+            }),
         }, { idempotencyKey: `order-${orderId}` });
 
         db.prepare('UPDATE orders SET payment_ref = ? WHERE id = ?').run(session.id, orderId);
@@ -138,6 +158,13 @@ router.post('/', requireAuth, async (req, res) => {
         deleteOrder(orderId);
         return res.status(502).json({ error: 'Could not start payment. Please try again.' });
     }
+});
+
+// What the signed-in account can still buy of a ticket (for the ticket page).
+router.get('/tickets/:uuid', requireAuth, (req, res) => {
+    const item = db.prepare('SELECT uuid FROM items WHERE uuid = ? AND active = 1 AND orderable = 1').get(req.params.uuid);
+    if (!item || !isTicket(item.uuid)) return res.status(404).json({ error: 'Ticket not found' });
+    res.json(ticketStatus(req.userKey, item.uuid));
 });
 
 router.get('/', requireStaff, (req, res) => {

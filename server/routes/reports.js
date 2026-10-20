@@ -1,5 +1,5 @@
 const { Router } = require('express');
-const { db, ITEM_CATEGORIES, CT_TAX_RATE } = require('../db');
+const { db, ITEM_CATEGORIES, CT_TAX_RATE, TAX_EXEMPT_SQL_LIST } = require('../db');
 const { requireStaff } = require('../staffAuth');
 const { dayBound, etDate } = require('../etDate');
 
@@ -33,7 +33,7 @@ router.get('/income-by-category', (_req, res) => {
         SELECT i.category AS category, s.name AS subcategory,
                SUM(-se.delta * i.price_cents) AS grossCents,
                SUM(CASE
-                   WHEN LOWER(TRIM(COALESCE(s.name, ''))) = 'supplies' THEN 0
+                   WHEN LOWER(TRIM(COALESCE(s.name, ''))) IN (${TAX_EXEMPT_SQL_LIST}) THEN 0
                    ELSE (-se.delta * i.price_cents)
                         - CAST(ROUND(-se.delta * i.price_cents / ${1 + CT_TAX_RATE}) AS INTEGER)
                END) AS taxCents

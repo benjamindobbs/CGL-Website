@@ -2213,6 +2213,32 @@ nav a.staff-only {
     background: rgba(27, 117, 187, 0.08);
 }
 
+/* Homepage "Buy HoCo Tickets" — bright pink with a soft pulsing halo. The
+   halo is a box-shadow ring (no layout shift) that fades in and out at
+   medium opacity. */
+.btn-hoco {
+    background-color: #FF1F8E;
+    box-shadow: 0 0 0 0 rgba(255, 31, 142, 0.5);
+    animation: hoco-pulse 2s ease-in-out infinite;
+}
+
+.btn-hoco:hover {
+    opacity: 1;
+    background-color: #E6007A;
+}
+
+@keyframes hoco-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(255, 31, 142, 0.15); }
+    50%      { box-shadow: 0 0 0 8px rgba(255, 31, 142, 0.5); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .btn-hoco {
+        animation: none;
+        box-shadow: 0 0 0 4px rgba(255, 31, 142, 0.4);
+    }
+}
+
 .home-cards {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
@@ -2525,5 +2551,192 @@ nav a.staff-only {
 
     .admin-layout {
         display: block;
+    }
+}
+/* ---------------------------------------------------------------------------
+   HoCo tickets (/hoco/) — Caribbean Carnival theme. Everything is scoped under
+   .hoco-page so the shared form styles elsewhere are untouched.
+   --------------------------------------------------------------------------- */
+.hoco-page {
+    --carnival-pink: #FF1F8E;
+    --carnival-turquoise: #00C9C8;
+    --carnival-sun: #FFD23F;
+    --carnival-mango: #FF7A1A;
+    --carnival-lime: #7ED957;
+    --carnival-night: #1A0B3D;
+    --carnival-sea: #0B4F6C;
+
+    background-color: var(--carnival-night);
+    background-image:
+        radial-gradient(circle at 12% 18%, rgba(255, 31, 142, 0.35), transparent 32%),
+        radial-gradient(circle at 88% 12%, rgba(255, 210, 63, 0.28), transparent 30%),
+        radial-gradient(circle at 80% 85%, rgba(0, 201, 200, 0.32), transparent 35%),
+        radial-gradient(circle at 15% 90%, rgba(255, 122, 26, 0.25), transparent 30%),
+        linear-gradient(160deg, var(--carnival-night) 0%, var(--carnival-sea) 100%);
+    background-attachment: fixed;
+    min-height: 100%;
+}
+
+.hoco {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 40px 16px 80px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+.hoco-hero h1 {
+    font-family: 'Lilita One', 'Segoe UI', sans-serif;
+    font-weight: 400;
+    font-size: clamp(2.2rem, 7vw, 3.6rem);
+    line-height: 1.05;
+    margin: 6px 0 0;
+    background: linear-gradient(90deg, var(--carnival-sun), var(--carnival-mango), var(--carnival-pink), var(--carnival-turquoise));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+.hoco-kicker {
+    display: inline-block;
+    color: var(--carnival-turquoise);
+    font-weight: 700;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+}
+
+/* Ticket stub: gentle idle bob, then lift + tilt + glow on hover. The art is
+   a 1296px (3x) WebP, so it stays sharp up to 600px on high-DPI screens. */
+.ticket-stage {
+    margin: 36px 0 28px;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    perspective: 900px;
+}
+
+.ticket-stub {
+    display: block;
+    width: min(100%, 600px);
+    height: auto;
+    border-radius: 10px;
+    animation: ticket-bob 4s ease-in-out infinite;
+    transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.35s ease;
+    filter: drop-shadow(0 14px 22px rgba(0, 0, 0, 0.35));
+    cursor: pointer;
+}
+
+.ticket-stub:hover {
+    animation-play-state: paused;
+    transform: translateY(-10px) scale(1.06) rotate(-2deg);
+    filter:
+        drop-shadow(0 0 18px rgba(255, 31, 142, 0.65))
+        drop-shadow(0 0 32px rgba(0, 201, 200, 0.45));
+}
+
+@keyframes ticket-bob {
+    0%, 100% { transform: translateY(0) rotate(-1deg); }
+    50%      { transform: translateY(-8px) rotate(1deg); }
+}
+
+.hoco-status {
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.hoco-card {
+    width: 100%;
+    box-sizing: border-box;
+    background: #fff;
+    border-radius: 20px;
+    padding: 28px;
+    text-align: left;
+    border-top: 6px solid var(--carnival-turquoise);
+    box-shadow: 0 20px 45px rgba(0, 0, 0, 0.35);
+}
+
+.hoco-card[hidden] {
+    display: none;
+}
+
+.hoco-price-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.hoco-price-row h2 {
+    font-family: 'Lilita One', 'Segoe UI', sans-serif;
+    font-weight: 400;
+    font-size: 1.6rem;
+    margin: 0 0 4px;
+    color: var(--carnival-night);
+}
+
+.hoco-detail {
+    margin: 0;
+    color: #555;
+}
+
+.hoco-unit-price {
+    font-family: 'Lilita One', 'Segoe UI', sans-serif;
+    font-size: 1.6rem;
+    color: var(--carnival-pink);
+    white-space: nowrap;
+}
+
+.hoco-page .form-group select:focus,
+.hoco-page .form-group input:focus {
+    border-color: var(--carnival-turquoise);
+    box-shadow: 0 0 0 4px rgba(0, 201, 200, 0.2);
+}
+
+.hoco-page .quantity-controls button:hover {
+    border-color: var(--carnival-pink);
+    color: var(--carnival-pink);
+}
+
+.hoco-page .price-display {
+    background: rgba(255, 210, 63, 0.15);
+    border-color: var(--carnival-mango);
+}
+
+.hoco-page #total-price {
+    color: var(--carnival-pink);
+}
+
+.hoco-page .submit-btn {
+    background: linear-gradient(90deg, var(--carnival-pink), var(--carnival-mango));
+    box-shadow: 0 10px 18px -4px rgba(255, 31, 142, 0.45);
+}
+
+.hoco-page .submit-btn:hover {
+    background: linear-gradient(90deg, #E6007A, #F2630A);
+    box-shadow: 0 18px 26px -6px rgba(255, 31, 142, 0.55);
+}
+
+.hoco-page .submit-btn:disabled {
+    opacity: 0.7;
+    cursor: wait;
+    transform: none;
+}
+
+.hoco-error {
+    color: #c0392b;
+    font-weight: 600;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ticket-stub {
+        animation: none;
+        transition: filter 0.2s ease;
+    }
+
+    .ticket-stub:hover {
+        transform: none;
     }
 }

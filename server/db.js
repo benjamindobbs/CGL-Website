@@ -269,13 +269,21 @@ const DEFAULT_CATEGORY = 'GFX';
 // the customer pays exactly price_cents, and that amount already contains the
 // tax. splitTaxInclusive() pulls the tax back out of a gross amount.
 const CT_TAX_RATE = 0.0635;
+// Only the v6 migration below uses this single name; that back-fill already
+// ran, so it stays exactly as it was. Live code uses TAX_EXEMPT_SUBCATEGORIES.
 const TAX_EXEMPT_SUBCATEGORY = 'supplies';
+
+// Sub-categories whose items carry no CT sales tax: "Supplies", and "Tickets"
+// (school event admissions, e.g. HoCo). Lower-case, compared trimmed.
+const TAX_EXEMPT_SUBCATEGORIES = ['supplies', 'tickets'];
+// The same list as a SQL `IN (...)` body, for queries that classify rows.
+const TAX_EXEMPT_SQL_LIST = TAX_EXEMPT_SUBCATEGORIES.map((n) => `'${n}'`).join(', ');
 
 // True when an item is tax-exempt because of its sub-category name. Pass the
 // sub-category NAME (ITEM_SELECT exposes it as `subcategory`); match is
 // case/space-insensitive so "Supplies", " supplies " etc. all count.
 function isSubcategoryTaxExempt(subcategoryName) {
-    return String(subcategoryName ?? '').trim().toLowerCase() === TAX_EXEMPT_SUBCATEGORY;
+    return TAX_EXEMPT_SUBCATEGORIES.includes(String(subcategoryName ?? '').trim().toLowerCase());
 }
 
 // Splits a gross (tax-inclusive) amount into { netCents, taxCents } such that
@@ -583,7 +591,7 @@ function sweepStaleUnpaidOrders(maxAgeMs = 24 * 60 * 60 * 1000) {
 module.exports = {
     db, upsertUser, isStaff, isSigninAllowed, applyStockDelta, recordTransaction, randomUUID,
     ITEM_CATEGORIES, DEFAULT_CATEGORY, normalizeCategory, normalizeHex,
-    CT_TAX_RATE, splitTaxInclusive, isSubcategoryTaxExempt,
+    CT_TAX_RATE, splitTaxInclusive, isSubcategoryTaxExempt, TAX_EXEMPT_SQL_LIST,
     JOB_CATEGORIES, JERSEY_SIZES,
     ITEM_SELECT, getItem, sweepStaleUnpaidOrders,
 };

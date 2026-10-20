@@ -98,6 +98,27 @@ function seedTraditionLine() {
     }
 }
 
+// Homecoming ticket, sold on its own page (/hoco/) rather than the Shop. The
+// `ticket-` uuid prefix keeps it off /order/ (see order-form.js), files it
+// under the tax-exempt "Tickets" sub-category below, and turns on the sell-out
+// and per-account limits in server/tickets.js. INSERT OR IGNORE, so once the
+// row exists staff price/stock edits stick — changing HOCO_TICKET here only
+// affects a fresh DB.
+const HOCO_TICKET = {
+    uuid: 'ticket-hoco-2026',
+    name: 'HoCo 2026 Ticket',
+    priceCents: 2500,
+    startingStock: 200,
+    detail: 'Homecoming 2026 — Caribbean Carnival. One admission per ticket.',
+};
+
+function seedHocoTicket() {
+    db.prepare(`
+        INSERT OR IGNORE INTO items(uuid, name, category, variant_color, variant_size, price_cents, detail, stock_qty, active, created_at)
+        VALUES(?, ?, 'School Store', NULL, NULL, ?, ?, ?, 1, ?)
+    `).run(HOCO_TICKET.uuid, HOCO_TICKET.name, HOCO_TICKET.priceCents, HOCO_TICKET.detail, HOCO_TICKET.startingStock, Date.now());
+}
+
 // Initial staff whitelist, re-seeded on every boot so these core accounts
 // can't be locked out by an accidental removal. Use server/manage-staff.js
 // to add/remove anyone else (including students) against the live DB
@@ -122,6 +143,7 @@ function seedStaff() {
 const SEED_SUBCATEGORIES = [
     { name: 'Uniforms', category: 'GFX', uuidPrefix: 'uniform-' },
     { name: 'Tradition Line', category: 'GFX', uuidPrefix: 'tradition-' },
+    { name: 'Tickets', category: 'School Store', uuidPrefix: 'ticket-' },
 ];
 
 function seedSubcategories() {
@@ -170,4 +192,4 @@ function seedColors() {
     `).run(now);
 }
 
-module.exports = { seedUniforms, seedTraditionLine, seedStaff, seedSubcategories, seedColors };
+module.exports = { seedUniforms, seedTraditionLine, seedHocoTicket, seedStaff, seedSubcategories, seedColors };

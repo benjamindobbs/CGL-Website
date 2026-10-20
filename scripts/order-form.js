@@ -37,6 +37,8 @@ async function loadCatalog() {
         catalog = {};
         const productSubcat = {}; // product name -> sub-category name (first seen)
         for (const item of items) {
+            // Tickets (e.g. HoCo) are sold on their own pages, not the Shop.
+            if (item.uuid.startsWith('ticket-')) continue;
             const size = item.variant_size || '';
             catalog[item.name] ??= {};
             catalog[item.name][item.variant_color] ??= {};

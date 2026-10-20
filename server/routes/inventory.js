@@ -66,7 +66,7 @@ router.post('/storefront-sale', (req, res) => {
         // Financial ledger entry. Amount is snapshotted at the current price so
         // a later price change never rewrites this sale. price_cents is
         // tax-inclusive; pull the CT sales tax out of the line total (0 for a
-        // "Supplies" item).
+        // "Supplies" / "Tickets" item).
         const grossCents = quantity * item.price_cents;
         const { taxCents } = splitTaxInclusive(grossCents, !isSubcategoryTaxExempt(item.subcategory));
         recordTransaction({
