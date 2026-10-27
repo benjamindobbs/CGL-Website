@@ -13,6 +13,11 @@ router.use(requireAdmin);
 const lower = (v) => String(v || '').trim().toLowerCase();
 const CORE = new Set(INITIAL_STAFF.map(lower));
 
+// Only the core accounts may grant admin, or demote / remove an existing admin.
+// Other admins manage student staff only.
+const CORE_ONLY_ERROR = 'Only the core lab accounts can add, change or remove admins';
+const isCore = (req) => CORE.has(lower(req.userEmail));
+
 function listStaff() {
     return db.prepare('SELECT email, role, display_name FROM staff_whitelist ORDER BY role, email').all()
         .map((s) => ({
@@ -35,6 +40,7 @@ router.post('/', (req, res) => {
     const email = lower(req.body.email);
     const role = req.body.role || 'student';
     if (!STAFF_ROLES.includes(role)) return res.status(400).json({ error: 'Unknown role' });
+    if (role === 'admin' && !isCore(req)) return res.status(403).json({ error: CORE_ONLY_ERROR });
     // Only accounts that can actually sign in are worth whitelisting.
     if (!resolveIdentity(email)) {
         return res.status(400).json({ error: 'That email can\'t sign in — use a hartfordschools.org or students.hartfordschools.org account.' });
@@ -56,6 +62,8 @@ router.patch('/:email', (req, res) => {
         if (!STAFF_ROLES.includes(req.body.role)) return res.status(400).json({ error: 'Unknown role' });
         if (CORE.has(email)) return res.status(400).json({ error: 'This core account is always an admin' });
         if (email === lower(req.userEmail)) return res.status(400).json({ error: "You can't change your own role" });
+        // Either direction touches an admin (promoting to, or demoting from).
+        if (!isCore(req)) return res.status(403).json({ error: CORE_ONLY_ERROR });
         db.prepare('UPDATE staff_whitelist SET role = ? WHERE email = ?').run(req.body.role, row.email);
     }
     if (req.body.displayName !== undefined) {
@@ -69,6 +77,8 @@ router.delete('/:email', (req, res) => {
     const email = lower(req.params.email);
     if (CORE.has(email)) return res.status(400).json({ error: 'This core account can\'t be removed' });
     if (email === lower(req.userEmail)) return res.status(400).json({ error: "You can't remove yourself" });
+    const row = db.prepare('SELECT role FROM staff_whitelist WHERE email = ? COLLATE NOCASE').get(email);
+    if (row && row.role === 'admin' && !isCore(req)) return res.status(403).json({ error: CORE_ONLY_ERROR });
     db.prepare('DELETE FROM staff_whitelist WHERE email = ? COLLATE NOCASE').run(email);
     res.json(listStaff());
 });

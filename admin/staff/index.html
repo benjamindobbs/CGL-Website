@@ -94,7 +94,8 @@
             <p class="field-note" style="margin:-6px 0 24px;">Who can open Staff Tools. <strong>Student staff</strong> get the
                 shift schedule plus read-only views of the item catalog, orders and job requests &mdash; no
                 restock, storefront sales, transactions or income totals. <strong>Admins</strong> get everything.
-                The display name is what shows on the shift schedule.</p>
+                The display name is what shows on the shift schedule. Only the core lab accounts can add,
+                change or remove admins.</p>
 
             <section class="config-card">
                 <h2 style="margin-top:0;">Add someone</h2>
@@ -111,7 +112,7 @@
                         <label for="add-role">Role</label>
                         <select id="add-role">
                             <option value="student" selected>Student staff</option>
-                            <option value="admin">Admin</option>
+                            <option value="admin" id="add-role-admin">Admin</option>
                         </select>
                     </div>
                     <button type="submit" class="submit-btn">Add</button>
@@ -150,12 +151,23 @@
             const me = String(session.email || '').toLowerCase();
 
             function render(list) {
+                // Only the core accounts can grant admin or touch an existing
+                // admin (the server enforces this too); other admins manage
+                // student staff only.
+                const iAmCore = list.some((s) => s.core && s.email.toLowerCase() === me);
+                $('add-role-admin').hidden = !iAmCore;
+                $('add-role-admin').disabled = !iAmCore;
+                if (!iAmCore) $('add-role').value = 'student';
+
                 $('staff-tbody').innerHTML = list.map((s) => {
                     const self = s.email.toLowerCase() === me;
                     // Core accounts are re-seeded as admin on every boot, and
                     // nobody can demote or remove themselves.
-                    const locked = s.core || self;
-                    const lockNote = s.core ? 'Core account &mdash; always admin' : self ? 'This is you' : '';
+                    const coreOnly = s.role === 'admin' && !iAmCore;
+                    const locked = s.core || self || coreOnly;
+                    const lockNote = s.core ? 'Core account &mdash; always admin'
+                        : self ? 'This is you'
+                        : coreOnly ? 'Admin &mdash; managed by the core accounts' : '';
                     return `
                         <tr data-email="${esc(s.email)}">
                             <td>
@@ -166,7 +178,7 @@
                             <td>
                                 <select class="role-select" ${locked ? 'disabled' : ''} aria-label="Role for ${esc(s.email)}">
                                     <option value="student" ${s.role === 'student' ? 'selected' : ''}>Student staff</option>
-                                    <option value="admin" ${s.role === 'admin' ? 'selected' : ''}>Admin</option>
+                                    ${iAmCore || s.role === 'admin' ? `<option value="admin" ${s.role === 'admin' ? 'selected' : ''}>Admin</option>` : ''}
                                 </select>
                             </td>
                             <td>${locked ? '' : '<button type="button" class="link-btn staff-remove">Remove</button>'}</td>
