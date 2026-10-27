@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Staff Accounts</title>
+
+    <link rel="icon" type="image/x-icon" href="/assets/favicon.ico">
+    <link rel="stylesheet" href="/main.css">
+    <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+
+    <style>
+        .staff-add {
+            display: grid;
+            grid-template-columns: 2fr 1.4fr 1fr auto;
+            gap: 12px;
+            align-items: end;
+        }
+        .staff-add .form-group { margin: 0; }
+        .staff-add .submit-btn { padding: 14px 22px; width: auto; }
+        .staff-table input,
+        .staff-table select {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 8px 10px;
+            border: 2px solid #EEE;
+            border-radius: 8px;
+            font: inherit;
+            font-size: 0.9rem;
+        }
+        .staff-table input:focus,
+        .staff-table select:focus { outline: none; border-color: #1B75BB; }
+        .staff-table select:disabled { background: #F2F2F2; color: #777; }
+        .staff-table td { vertical-align: middle; }
+        .staff-table .staff-remove { color: #c0392b; }
+        .saved-tick { color: #27ae60; font-size: 0.8rem; font-weight: 700; }
+        #add-result { margin: 12px 0 0; font-weight: 600; }
+
+        @media (max-width: 760px) {
+            .staff-add { grid-template-columns: 1fr; }
+            .staff-add .submit-btn { width: 100%; }
+        }
+    </style>
+</head>
+
+<body class="form-page admin-page">
+    <div class="admin-layout">
+        <aside class="admin-sidebar" id="admin-sidebar">
+            <div class="admin-sidebar-head">
+                <img src="/assets/CGL-Logo.svg" alt="Classical Graphics Lab">
+                <button class="admin-sidebar-close" id="admin-sidebar-close" type="button" aria-label="Close menu">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+            <nav class="admin-nav">
+                <a href="/admin/" data-title="Dashboard"><span class="material-symbols-outlined">dashboard</span> Dashboard</a>
+                <p class="admin-nav-group">Fulfillment</p>
+                <a href="/admin/orders/"><span class="material-symbols-outlined">receipt_long</span> Orders</a>
+                <a href="/admin/requests/"><span class="material-symbols-outlined">assignment</span> Job Requests</a>
+                <p class="admin-nav-group">Inventory</p>
+                <a href="/admin/items/"><span class="material-symbols-outlined">inventory_2</span> Item Catalog</a>
+                <a href="/admin/restock/" class="admin-only" hidden><span class="material-symbols-outlined">add_box</span> Restock</a>
+                <a href="/admin/storefront/" class="admin-only" hidden><span class="material-symbols-outlined">point_of_sale</span> Storefront Sale</a>
+                <p class="admin-nav-group">Staff</p>
+                <a href="/admin/schedule/"><span class="material-symbols-outlined">calendar_month</span> Shift Schedule</a>
+                <a href="/admin/staff/" class="admin-only" hidden><span class="material-symbols-outlined">group</span> Staff Accounts</a>
+                <p class="admin-nav-group">Records</p>
+                <a href="/admin/transactions/" class="admin-only" hidden><span class="material-symbols-outlined">account_balance</span> Transactions</a>
+                <a href="/admin/labels/"><span class="material-symbols-outlined">qr_code_2</span> QR Label Sheets</a>
+            </nav>
+            <div class="admin-sidebar-foot">
+                <a href="/">&larr; Public site</a>
+                <button id="admin-signout" type="button">Sign out</button>
+            </div>
+        </aside>
+
+        <div class="admin-main">
+            <header class="admin-topbar">
+                <button class="admin-menu-btn" id="admin-menu-btn" type="button" aria-label="Open menu">
+                    <span class="material-symbols-outlined">menu</span>
+                </button>
+                <span class="admin-topbar-title" id="admin-topbar-title"></span>
+                <span class="admin-topbar-user" id="admin-topbar-user"></span>
+            </header>
+
+    <main class="staff-container">
+        <p id="loading-status" class="placeholder-text">Checking sign-in&hellip;</p>
+
+        <div id="staff-ui" style="display:none;">
+            <h1>Staff Accounts</h1>
+            <p class="field-note" style="margin:-6px 0 24px;">Who can open Staff Tools. <strong>Student staff</strong> get the
+                shift schedule plus read-only views of the item catalog, orders and job requests &mdash; no
+                restock, storefront sales, transactions or income totals. <strong>Admins</strong> get everything.
+                The display name is what shows on the shift schedule.</p>
+
+            <section class="config-card">
+                <h2 style="margin-top:0;">Add someone</h2>
+                <form id="add-form" class="staff-add">
+                    <div class="form-group">
+                        <label for="add-email">School email</label>
+                        <input type="email" id="add-email" placeholder="jdoe001@students.hartfordschools.org" required autocomplete="off">
+                    </div>
+                    <div class="form-group">
+                        <label for="add-name">Display name</label>
+                        <input type="text" id="add-name" placeholder="e.g. Jordan D." maxlength="60" autocomplete="off">
+                    </div>
+                    <div class="form-group">
+                        <label for="add-role">Role</label>
+                        <select id="add-role">
+                            <option value="student" selected>Student staff</option>
+                            <option value="admin">Admin</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="submit-btn">Add</button>
+                </form>
+                <p id="add-result" hidden></p>
+            </section>
+
+            <div style="overflow-x:auto;">
+                <table class="admin-table staff-table">
+                    <thead>
+                        <tr>
+                            <th>Display name</th>
+                            <th>Email</th>
+                            <th style="width:170px;">Role</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="staff-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+        </div>
+    </div>
+    <div class="admin-scrim" id="admin-scrim" hidden></div>
+
+    <script src="https://accounts.google.com/gsi/client" async defer onload="gisLoaded()"></script>
+    <script src="/scripts/auth.js"></script>
+    <script src="/scripts/staff-guard.js"></script>
+    <script>
+        requireStaffSession((session) => {
+            const $ = (id) => document.getElementById(id);
+            const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => (
+                { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]
+            ));
+            const me = String(session.email || '').toLowerCase();
+
+            function render(list) {
+                $('staff-tbody').innerHTML = list.map((s) => {
+                    const self = s.email.toLowerCase() === me;
+                    // Core accounts are re-seeded as admin on every boot, and
+                    // nobody can demote or remove themselves.
+                    const locked = s.core || self;
+                    const lockNote = s.core ? 'Core account &mdash; always admin' : self ? 'This is you' : '';
+                    return `
+                        <tr data-email="${esc(s.email)}">
+                            <td>
+                                <input type="text" class="name-input" value="${esc(s.displayName)}" placeholder="${esc(s.email.split('@')[0])}" maxlength="60" aria-label="Display name for ${esc(s.email)}">
+                                <span class="saved-tick" hidden>Saved</span>
+                            </td>
+                            <td>${esc(s.email)}${lockNote ? `<br><small class="field-note" style="margin:0;">${lockNote}</small>` : ''}</td>
+                            <td>
+                                <select class="role-select" ${locked ? 'disabled' : ''} aria-label="Role for ${esc(s.email)}">
+                                    <option value="student" ${s.role === 'student' ? 'selected' : ''}>Student staff</option>
+                                    <option value="admin" ${s.role === 'admin' ? 'selected' : ''}>Admin</option>
+                                </select>
+                            </td>
+                            <td>${locked ? '' : '<button type="button" class="link-btn staff-remove">Remove</button>'}</td>
+                        </tr>`;
+                }).join('') || '<tr><td colspan="4" class="placeholder-text">No staff yet.</td></tr>';
+            }
+
+            async function load() {
+                const res = await authFetch('/api/staff');
+                if (!res.ok) {
+                    $('staff-tbody').innerHTML = '<tr><td colspan="4" class="placeholder-text">Could not load staff. Please refresh.</td></tr>';
+                    return;
+                }
+                render(await res.json());
+            }
+
+            async function patch(email, body) {
+                const res = await authFetch(`/api/staff/${encodeURIComponent(email)}`, {
+                    method: 'PATCH',
+                    body: JSON.stringify(body),
+                });
+                const json = await res.json().catch(() => ({}));
+                if (!res.ok) { alert(json.error || 'Could not save.'); load(); return false; }
+                render(json);
+                return true;
+            }
+
+            $('add-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const result = $('add-result');
+                const email = $('add-email').value.trim().toLowerCase();
+                const res = await authFetch('/api/staff', {
+                    method: 'POST',
+                    body: JSON.stringify({ email, displayName: $('add-name').value, role: $('add-role').value }),
+                });
+                const json = await res.json().catch(() => ({}));
+                result.hidden = false;
+                if (!res.ok) {
+                    result.style.color = '#c0392b';
+                    result.textContent = json.error || 'Could not add that account.';
+                    return;
+                }
+                result.style.color = '#27ae60';
+                result.textContent = `Added ${email}. They'll have access the next time they sign in or refresh.`;
+                $('add-form').reset();
+                render(json);
+            });
+
+            $('staff-tbody').addEventListener('change', async (e) => {
+                const tr = e.target.closest('tr[data-email]');
+                if (!tr) return;
+                const email = tr.dataset.email;
+                if (e.target.classList.contains('role-select')) {
+                    const role = e.target.value;
+                    const label = role === 'admin'
+                        ? 'an admin (full access, including sales and money)'
+                        : 'student staff (schedule + read-only, no sales or money)';
+                    if (!confirm(`Make ${email} ${label}?`)) { load(); return; }
+                    patch(email, { role });
+                } else if (e.target.classList.contains('name-input')) {
+                    if (await patch(email, { displayName: e.target.value })) {
+                        const row = $('staff-tbody').querySelector(`tr[data-email="${CSS.escape(email)}"] .saved-tick`);
+                        if (row) row.hidden = false;
+                    }
+                }
+            });
+
+            $('staff-tbody').addEventListener('click', async (e) => {
+                if (!e.target.classList.contains('staff-remove')) return;
+                const email = e.target.closest('tr').dataset.email;
+                if (!confirm(`Remove ${email} from Staff Tools? Their shift signups stay on the schedule.`)) return;
+                const res = await authFetch(`/api/staff/${encodeURIComponent(email)}`, { method: 'DELETE' });
+                const json = await res.json().catch(() => ({}));
+                if (!res.ok) { alert(json.error || 'Could not remove.'); return; }
+                render(json);
+            });
+
+            load();
+        }, { adminOnly: true });
+    </script>
+    <script src="/scripts/admin-shell.js"></script>
+</body>
+
+</html>

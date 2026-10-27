@@ -30,8 +30,16 @@ db.exec(`
     -- Emails allowed into staff-only tools (inventory catalog admin, restock,
     -- storefront, order dashboard). Separate from ALLOWED_DOMAINS in auth.js,
     -- which just gates sign-in generally.
+    --   role: 'admin'   — everything under /admin/.
+    --         'student' — student staff: shift schedule, plus read-only views of
+    --                     the item catalog, orders and job requests. No restock,
+    --                     storefront sale, transactions or income reports. See
+    --                     STAFF_ROLES / requireAdmin in server/staffAuth.js.
+    --   display_name: shown on the shift schedule; '' falls back to the email.
     CREATE TABLE IF NOT EXISTS staff_whitelist (
-        email TEXT PRIMARY KEY
+        email        TEXT PRIMARY KEY,
+        role         TEXT NOT NULL DEFAULT 'admin' CHECK(role IN ('admin','student')),
+        display_name TEXT NOT NULL DEFAULT ''
     );
 
     -- Individual out-of-district email addresses allowed to sign in, on top of
@@ -257,6 +265,58 @@ db.exec(`
     );
     CREATE INDEX IF NOT EXISTS idx_transactions_posted  ON transactions(posted_at);
     CREATE INDEX IF NOT EXISTS idx_transactions_account ON transactions(account);
+
+    -- Home games mirrored from the CIAC athletics calendar feed
+    -- (server/athletics.js). Keyed by the feed's UID, which stays stable when a
+    -- game is rescheduled. Rows are never deleted: a future game that drops out
+    -- of the feed or is marked "Canceled" gets removed_at stamped instead, so
+    -- shift signups on that evening can be flagged rather than orphaned.
+    --   on_campus: 1 when LOCATION is Classical Magnet itself; only those games
+    --              create an evening shift (soccer "home" games are off-site).
+    CREATE TABLE IF NOT EXISTS athletic_events (
+        uid          TEXT    PRIMARY KEY,
+        starts_at    INTEGER NOT NULL,
+        ends_at      INTEGER NOT NULL,
+        summary      TEXT    NOT NULL DEFAULT '',
+        location     TEXT    NOT NULL DEFAULT '',
+        description  TEXT    NOT NULL DEFAULT '',
+        on_campus    INTEGER NOT NULL DEFAULT 0,
+        last_seen_at INTEGER NOT NULL,
+        removed_at   INTEGER
+    );
+    CREATE INDEX IF NOT EXISTS idx_athletic_events_start ON athletic_events(starts_at);
+
+    -- Student staff sign-ups for a shift. Shifts themselves aren't stored: they
+    -- are computed per day from the rules in server/shifts.js (plus game evenings
+    -- from athletic_events), so a signup is just (ET date, shift key, person).
+    --   created_by: user_key of whoever made the row — the student themselves,
+    --               or an admin assigning them.
+    CREATE TABLE IF NOT EXISTS shift_signups (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        shift_date TEXT    NOT NULL,
+        shift_key  TEXT    NOT NULL,
+        email      TEXT    NOT NULL,
+        created_by TEXT    NOT NULL DEFAULT '',
+        created_at INTEGER NOT NULL,
+        UNIQUE(shift_date, shift_key, email)
+    );
+    CREATE INDEX IF NOT EXISTS idx_shift_signups_date  ON shift_signups(shift_date);
+    CREATE INDEX IF NOT EXISTS idx_shift_signups_email ON shift_signups(email);
+
+    -- No-school days (holidays, breaks, PD days) marked by an admin. Regular
+    -- weekday shifts are hidden on these dates; game evenings still show.
+    CREATE TABLE IF NOT EXISTS schedule_closures (
+        date TEXT PRIMARY KEY,
+        note TEXT NOT NULL DEFAULT ''
+    );
+
+    -- Small key/value store for app bookkeeping that must survive restarts
+    -- (e.g. the athletics feed's last sync time / error).
+    CREATE TABLE IF NOT EXISTS app_state (
+        key        TEXT    PRIMARY KEY,
+        value      TEXT    NOT NULL DEFAULT '',
+        updated_at INTEGER NOT NULL
+    );
 `);
 
 // The fixed set of item categories. Income is totalled per category on the
@@ -315,7 +375,7 @@ function normalizeCategory(value) {
 // --- Schema migrations -------------------------------------------------------
 // Bump SCHEMA_VERSION and add a matching `if (fromVersion < N)` block for each
 // change. PRAGMA user_version persists in the DB file, so each block runs once.
-const SCHEMA_VERSION = 9;
+const SCHEMA_VERSION = 10;
 const fromVersion = db.prepare('PRAGMA user_version').get().user_version;
 
 // True when the table already has the given column (used to make ADD COLUMN
@@ -492,6 +552,16 @@ if (!tableHasColumn('transactions', 'location')) {
     db.exec("UPDATE transactions SET location = 'storefront' WHERE source = 'storefront_sale'");
 }
 
+// v10: staff roles. Column-guarded like v9. Every existing whitelist entry
+// keeps full access (role 'admin'); student staff are demoted explicitly from
+// /admin/staff/ or server/manage-staff.js.
+if (!tableHasColumn('staff_whitelist', 'role')) {
+    db.exec("ALTER TABLE staff_whitelist ADD COLUMN role TEXT NOT NULL DEFAULT 'admin' CHECK(role IN ('admin','student'))");
+}
+if (!tableHasColumn('staff_whitelist', 'display_name')) {
+    db.exec("ALTER TABLE staff_whitelist ADD COLUMN display_name TEXT NOT NULL DEFAULT ''");
+}
+
 if (fromVersion < SCHEMA_VERSION) {
     db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`);
 }
@@ -506,8 +576,19 @@ function upsertUser(userKey, email) {
     ).run(userKey, email, Date.now());
 }
 
+const STAFF_ROLES = ['admin', 'student'];
+
+// The account's staff role ('admin' | 'student'), or null when it isn't on the
+// whitelist at all. Case-insensitive, since emails added by hand from the
+// /admin/staff/ page may not match the casing Google reports.
+function getStaffRole(email) {
+    const row = db.prepare('SELECT role FROM staff_whitelist WHERE email = ? COLLATE NOCASE')
+        .get(String(email || '').trim());
+    return row ? row.role : null;
+}
+
 function isStaff(email) {
-    return !!db.prepare('SELECT 1 FROM staff_whitelist WHERE email = ?').get(email);
+    return getStaffRole(email) !== null;
 }
 
 // True when this exact address is on the out-of-district sign-in allow-list
@@ -589,7 +670,8 @@ function sweepStaleUnpaidOrders(maxAgeMs = 24 * 60 * 60 * 1000) {
 }
 
 module.exports = {
-    db, upsertUser, isStaff, isSigninAllowed, applyStockDelta, recordTransaction, randomUUID,
+    db, upsertUser, isStaff, getStaffRole, STAFF_ROLES, isSigninAllowed,
+    applyStockDelta, recordTransaction, randomUUID,
     ITEM_CATEGORIES, DEFAULT_CATEGORY, normalizeCategory, normalizeHex,
     CT_TAX_RATE, splitTaxInclusive, isSubcategoryTaxExempt, TAX_EXEMPT_SQL_LIST,
     JOB_CATEGORIES, JERSEY_SIZES,

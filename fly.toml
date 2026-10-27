@@ -2,10 +2,14 @@
 #
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
-# Managing the staff whitelist (who can use /admin/*) after deploy, without a
-# redeploy — run from a machine with flyctl authenticated against this app:
+# Managing the staff whitelist (who can use /admin/*). Day to day this is the
+# /admin/staff/ page (admins only). Two roles: 'admin' (everything) and
+# 'student' (shift schedule + read-only catalog/orders/requests, nothing
+# money-related). CLI fallback, run from a machine with flyctl authenticated
+# against this app:
 #   fly ssh console -a cgl-website -C "node server/manage-staff.js add someone@hartfordschools.org"
-#   fly ssh console -a cgl-website -C "node server/manage-staff.js add someone@students.hartfordschools.org"
+#   fly ssh console -a cgl-website -C "node server/manage-staff.js add someone@students.hartfordschools.org student"
+#   fly ssh console -a cgl-website -C "node server/manage-staff.js role someone@students.hartfordschools.org admin"
 #   fly ssh console -a cgl-website -C "node server/manage-staff.js remove someone@hartfordschools.org"
 #   fly ssh console -a cgl-website -C "node server/manage-staff.js list"
 # (fly ssh console starts a machine if none is running, since
@@ -43,6 +47,12 @@
 #   fly storage create        # pick this app; it injects the AWS_* + BUCKET_NAME secrets
 # Without those, isStorageConfigured() is false: text-only requests still save,
 # but a request WITH files attached is refused with a 503.
+#
+# Athletics calendar (home games -> evening shifts on /admin/schedule/). The
+# CIAC "subscribe" link, all teams, home games only. webcal:// is fine; it's
+# fetched as https. Set as a secret since the URL carries an Auth token:
+#   fly secrets set -a cgl-website ATHLETICS_ICS_URL='webcal://ciac.fpsports.org/services/calendarsyncv2.ashx?Auth=...&SportGenderListID=0&SchoolID=61&HomeAwayID=1'
+# Without it the schedule still works, just with no game shifts.
 
 app = 'cgl-website'
 primary_region = 'ams'

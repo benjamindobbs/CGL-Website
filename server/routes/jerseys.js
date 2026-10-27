@@ -1,7 +1,7 @@
 const { Router } = require('express');
 const { db, JERSEY_SIZES } = require('../db');
 const { requireDistrictStaff } = require('../auth');
-const { requireStaff } = require('../staffAuth');
+const { requireStaff, requireAdmin } = require('../staffAuth');
 const { csvDocument } = require('../csv');
 
 const router = Router();
@@ -115,7 +115,7 @@ router.get('/:id/export.csv', requireStaff, (req, res) => {
     res.send(body);
 });
 
-router.delete('/:id', requireStaff, (req, res) => {
+router.delete('/:id', requireAdmin, (req, res) => {
     const job = db.prepare('SELECT * FROM jersey_jobs WHERE id = ?').get(req.params.id);
     if (!job) return res.status(404).json({ error: 'Roster not found' });
     db.exec('BEGIN');

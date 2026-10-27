@@ -29,10 +29,13 @@
                 <a href="/admin/requests/"><span class="material-symbols-outlined">assignment</span> Job Requests</a>
                 <p class="admin-nav-group">Inventory</p>
                 <a href="/admin/items/"><span class="material-symbols-outlined">inventory_2</span> Item Catalog</a>
-                <a href="/admin/restock/"><span class="material-symbols-outlined">add_box</span> Restock</a>
-                <a href="/admin/storefront/"><span class="material-symbols-outlined">point_of_sale</span> Storefront Sale</a>
+                <a href="/admin/restock/" class="admin-only" hidden><span class="material-symbols-outlined">add_box</span> Restock</a>
+                <a href="/admin/storefront/" class="admin-only" hidden><span class="material-symbols-outlined">point_of_sale</span> Storefront Sale</a>
+                <p class="admin-nav-group">Staff</p>
+                <a href="/admin/schedule/"><span class="material-symbols-outlined">calendar_month</span> Shift Schedule</a>
+                <a href="/admin/staff/" class="admin-only" hidden><span class="material-symbols-outlined">group</span> Staff Accounts</a>
                 <p class="admin-nav-group">Records</p>
-                <a href="/admin/transactions/"><span class="material-symbols-outlined">account_balance</span> Transactions</a>
+                <a href="/admin/transactions/" class="admin-only" hidden><span class="material-symbols-outlined">account_balance</span> Transactions</a>
                 <a href="/admin/labels/"><span class="material-symbols-outlined">qr_code_2</span> QR Label Sheets</a>
             </nav>
             <div class="admin-sidebar-foot">
@@ -56,7 +59,7 @@
         <div id="staff-ui" style="display:none;">
             <h1>Item Catalog</h1>
 
-            <div class="config-card">
+            <div class="config-card admin-only" hidden>
                 <h2>Add New Item</h2>
                 <div class="form-group">
                     <label for="item-name">Name</label>
@@ -134,7 +137,7 @@
                 <button type="button" id="add-item-btn" class="secondary-btn">Add Item</button>
             </div>
 
-            <div class="config-card" style="margin-top:40px;">
+            <div class="config-card admin-only" style="margin-top:40px;" hidden>
                 <h2>Sub-categories</h2>
                 <p class="field-note" style="margin-bottom:16px;">
                     A second grouping level under a top category &mdash; e.g. "Uniforms" under GFX,
@@ -156,7 +159,7 @@
                 <div id="subcat-list"></div>
             </div>
 
-            <div class="config-card" style="margin-top:40px;">
+            <div class="config-card admin-only" style="margin-top:40px;" hidden>
                 <h2>Colors</h2>
                 <p class="field-note" style="margin-bottom:16px;">
                     The swatch shown on the order page for each color name. Editing a color
@@ -196,7 +199,7 @@
                         <option value="">All sub-categories</option>
                     </select>
                 </div>
-                <div class="catalog-bulk">
+                <div class="catalog-bulk admin-only" hidden>
                     <span class="catalog-bulk-label" id="bulk-scope-label">Pick a category or sub-category to bulk-change.</span>
                     <div class="catalog-bulk-actions">
                         <button type="button" id="bulk-show" class="secondary-btn" disabled>Show all on order page</button>
@@ -234,7 +237,10 @@
     <script src="/scripts/auth.js"></script>
     <script src="/scripts/staff-guard.js"></script>
     <script>
-        requireStaffSession(() => {
+        requireStaffSession((session) => {
+            // Student staff browse the catalog read-only: the add / sub-category /
+            // color cards and bulk actions are .admin-only, and rows get no Edit.
+            const canEdit = isAdminSession(session);
             const $ = (id) => document.getElementById(id);
             const CATEGORIES = ['School Store', 'Athletics', 'GFX'];
             const money = (cents) => `$${(cents / 100).toFixed(2)}`;
@@ -478,7 +484,7 @@
                         <td>${money(item.price_cents)}</td>
                         <td>${item.stock_qty}</td>
                         <td>${orderBadge}</td>
-                        <td><button type="button" class="link-btn row-edit">Edit</button></td>
+                        <td>${canEdit ? '<button type="button" class="link-btn row-edit">Edit</button>' : ''}</td>
                     </tr>
                 `;
             }

@@ -1,9 +1,17 @@
 const { Router } = require('express');
-const { db, upsertUser, isStaff } = require('../db');
+const { db, upsertUser, getStaffRole } = require('../db');
 const { randomUUID } = require('crypto');
 const { resolveIdentity, isDistrictUser } = require('../auth');
 
 const router = Router();
+
+// Role flags sent to the browser with every session. `role` is the staff role
+// ('admin' | 'student') or null; isStaff stays for pages that only care about
+// "any staff". The server re-checks on every staff API call regardless.
+function roleFlags(email) {
+    const role = getStaffRole(email);
+    return { isStaff: role !== null, role, isDistrict: isDistrictUser(email) };
+}
 
 router.post('/login', async (req, res) => {
     const { token } = req.body;
@@ -21,7 +29,7 @@ router.post('/login', async (req, res) => {
         const sessionToken = randomUUID();
         db.prepare('INSERT INTO sessions(token, user_key, created_at, last_seen) VALUES(?, ?, ?, ?)')
           .run(sessionToken, identity.userKey, Date.now(), Date.now());
-        res.json({ sessionToken, isStaff: isStaff(identity.email), isDistrict: isDistrictUser(identity.email) });
+        res.json({ sessionToken, ...roleFlags(identity.email) });
     } catch (err) {
         console.error('Login error:', err);
         res.status(500).json({ error: 'Server error' });
@@ -31,7 +39,7 @@ router.post('/login', async (req, res) => {
 router.get('/me', (req, res) => {
     if (process.env.DEV_USER) {
         const email = `${process.env.DEV_USER}@hartfordschools.org`;
-        return res.json({ userKey: process.env.DEV_USER, email, isStaff: isStaff(email), isDistrict: isDistrictUser(email) });
+        return res.json({ userKey: process.env.DEV_USER, email, ...roleFlags(email) });
     }
     const header = req.headers['authorization'] || '';
     const token = header.startsWith('Bearer ') ? header.slice(7) : null;
@@ -41,7 +49,7 @@ router.get('/me', (req, res) => {
     ).get(token);
     if (!session) return res.status(401).json({ error: 'Invalid session' });
     db.prepare('UPDATE sessions SET last_seen = ? WHERE token = ?').run(Date.now(), token);
-    res.json({ userKey: session.user_key, email: session.email, isStaff: isStaff(session.email), isDistrict: isDistrictUser(session.email) });
+    res.json({ userKey: session.user_key, email: session.email, ...roleFlags(session.email) });
 });
 
 module.exports = router;

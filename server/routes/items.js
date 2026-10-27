@@ -1,6 +1,6 @@
 const { Router } = require('express');
 const { db, randomUUID, normalizeCategory, ITEM_CATEGORIES, ITEM_SELECT, getItem, normalizeHex } = require('../db');
-const { requireStaff } = require('../staffAuth');
+const { requireStaff, requireAdmin } = require('../staffAuth');
 
 const router = Router();
 
@@ -57,7 +57,7 @@ router.get('/:uuid', requireStaff, (req, res) => {
     res.json(item);
 });
 
-router.post('/', requireStaff, (req, res) => {
+router.post('/', requireAdmin, (req, res) => {
     const { name, uuid, category, subcategoryId, variantColor, variantSize, priceCents, detail, startingStock, orderable, newColors } = req.body;
     if (!name) return res.status(400).json({ error: 'Missing item name' });
 
@@ -97,7 +97,7 @@ router.post('/', requireStaff, (req, res) => {
 // Staff-only: edit an existing item in place. Every field is optional; only
 // what's sent is changed. Stock is never touched here — it moves only through
 // Restock / Storefront so the stock ledger stays complete.
-router.patch('/:uuid', requireStaff, (req, res) => {
+router.patch('/:uuid', requireAdmin, (req, res) => {
     const current = db.prepare('SELECT * FROM items WHERE uuid = ?').get(req.params.uuid);
     if (!current) return res.status(404).json({ error: 'No item found for that UUID' });
 
@@ -169,7 +169,7 @@ router.patch('/:uuid', requireStaff, (req, res) => {
 // Staff-only: create one item per color x size combination in a single call.
 // UUIDs are always auto-generated here (a shared UUID across variants makes no
 // sense). An empty colors/sizes array just means that dimension is NULL.
-router.post('/bulk', requireStaff, (req, res) => {
+router.post('/bulk', requireAdmin, (req, res) => {
     const { name, category, subcategoryId, priceCents, detail, startingStock, colors, sizes, orderable, newColors } = req.body;
     if (!name) return res.status(400).json({ error: 'Missing item name' });
 
@@ -225,7 +225,7 @@ router.post('/bulk', requireStaff, (req, res) => {
 // The scope must be narrowed by at least one of `category` / `subcategoryId` so
 // a stray call can't hide (or expose) the entire catalog. `subcategoryId` may be
 // a numeric id, or the string 'none' to target items filed under no sub-category.
-router.post('/bulk-orderable', requireStaff, (req, res) => {
+router.post('/bulk-orderable', requireAdmin, (req, res) => {
     const { orderable, category, subcategoryId } = req.body || {};
     if (typeof orderable !== 'boolean') {
         return res.status(400).json({ error: 'orderable must be true or false' });

@@ -54,10 +54,13 @@
                 <a href="/admin/requests/"><span class="material-symbols-outlined">assignment</span> Job Requests</a>
                 <p class="admin-nav-group">Inventory</p>
                 <a href="/admin/items/"><span class="material-symbols-outlined">inventory_2</span> Item Catalog</a>
-                <a href="/admin/restock/"><span class="material-symbols-outlined">add_box</span> Restock</a>
-                <a href="/admin/storefront/"><span class="material-symbols-outlined">point_of_sale</span> Storefront Sale</a>
+                <a href="/admin/restock/" class="admin-only" hidden><span class="material-symbols-outlined">add_box</span> Restock</a>
+                <a href="/admin/storefront/" class="admin-only" hidden><span class="material-symbols-outlined">point_of_sale</span> Storefront Sale</a>
+                <p class="admin-nav-group">Staff</p>
+                <a href="/admin/schedule/"><span class="material-symbols-outlined">calendar_month</span> Shift Schedule</a>
+                <a href="/admin/staff/" class="admin-only" hidden><span class="material-symbols-outlined">group</span> Staff Accounts</a>
                 <p class="admin-nav-group">Records</p>
-                <a href="/admin/transactions/"><span class="material-symbols-outlined">account_balance</span> Transactions</a>
+                <a href="/admin/transactions/" class="admin-only" hidden><span class="material-symbols-outlined">account_balance</span> Transactions</a>
                 <a href="/admin/labels/"><span class="material-symbols-outlined">qr_code_2</span> QR Label Sheets</a>
             </nav>
             <div class="admin-sidebar-foot">
@@ -127,7 +130,9 @@
     <script src="/scripts/auth.js"></script>
     <script src="/scripts/staff-guard.js"></script>
     <script>
-        requireStaffSession(() => {
+        requireStaffSession((session) => {
+            // Student staff get a read-only view (no status changes).
+            const canEdit = isAdminSession(session);
             const $ = (id) => document.getElementById(id);
             const STATUSES = ['new', 'in_progress', 'quoted', 'complete', 'cancelled'];
             const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => (
@@ -175,7 +180,7 @@
                             <td>${esc(r.quantity || '—')}</td>
                             <td>${esc(r.needed_by || '—')}</td>
                             <td>${fileLinks(r.files)}</td>
-                            <td><select onchange="updateStatus(${r.id}, this.value)">${statusOptions}</select></td>
+                            <td><select onchange="updateStatus(${r.id}, this.value)" ${canEdit ? '' : 'disabled'}>${statusOptions}</select></td>
                         </tr>
                     `;
                 }).join('') || '<tr><td colspan="10" class="placeholder-text">No requests yet.</td></tr>';

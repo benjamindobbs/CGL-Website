@@ -3,6 +3,7 @@ const path    = require('path');
 
 const { seedUniforms, seedTraditionLine, seedHocoTicket, seedStaff, seedSubcategories, seedColors } = require('./seed');
 const { sweepStaleUnpaidOrders } = require('./db');
+const { startAthleticsSync } = require('./athletics');
 seedUniforms();
 seedTraditionLine();
 seedHocoTicket();
@@ -30,6 +31,8 @@ app.use('/api/transactions',  require('./routes/transactions'));
 app.use('/api/reports',       require('./routes/reports'));
 app.use('/api/requests',      require('./routes/requests'));
 app.use('/api/jerseys',       require('./routes/jerseys'));
+app.use('/api/schedule',      require('./routes/schedule'));
+app.use('/api/staff',         require('./routes/staff'));
 
 app.use(express.static(path.join(__dirname, '..')));
 
@@ -41,6 +44,10 @@ app.get('*', (_req, res) => {
 // hourly. A late-arriving payment webhook still settles the order regardless.
 sweepStaleUnpaidOrders();
 setInterval(sweepStaleUnpaidOrders, 60 * 60 * 1000).unref();
+
+// Mirror the CIAC home-games feed for schedule evening shifts (no-op without
+// ATHLETICS_ICS_URL). See server/athletics.js for why page loads also sync.
+startAthleticsSync();
 
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);

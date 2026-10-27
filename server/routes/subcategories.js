@@ -1,6 +1,6 @@
 const { Router } = require('express');
 const { db, normalizeCategory } = require('../db');
-const { requireStaff } = require('../staffAuth');
+const { requireStaff, requireAdmin } = require('../staffAuth');
 
 const router = Router();
 router.use(requireStaff);
@@ -21,7 +21,7 @@ router.get('/', (_req, res) => {
     res.json(listSubcategories());
 });
 
-router.post('/', (req, res) => {
+router.post('/', requireAdmin, (req, res) => {
     const name = String(req.body.name || '').trim().replace(/\s+/g, ' ');
     const category = normalizeCategory(req.body.category);
     if (!name) return res.status(400).json({ error: 'Missing sub-category name' });
@@ -40,7 +40,7 @@ router.post('/', (req, res) => {
     );
 });
 
-router.patch('/:id', (req, res) => {
+router.patch('/:id', requireAdmin, (req, res) => {
     const existing = db.prepare('SELECT * FROM subcategories WHERE id = ?').get(req.params.id);
     if (!existing) return res.status(404).json({ error: 'Sub-category not found' });
 
@@ -76,7 +76,7 @@ router.patch('/:id', (req, res) => {
     res.json(db.prepare('SELECT id, name, category, created_at FROM subcategories WHERE id = ?').get(existing.id));
 });
 
-router.delete('/:id', (req, res) => {
+router.delete('/:id', requireAdmin, (req, res) => {
     const existing = db.prepare('SELECT * FROM subcategories WHERE id = ?').get(req.params.id);
     if (!existing) return res.status(404).json({ error: 'Sub-category not found' });
 

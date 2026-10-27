@@ -1,3 +1,16 @@
+Built: student staff role + shift schedule.
+- Roles: staff_whitelist.role 'admin' | 'student'. Student staff can't open
+  Restock / Storefront Sale / Transactions or see dashboard money, and get
+  read-only Item Catalog / Orders / Job Requests. Server-enforced via
+  requireAdmin (server/staffAuth.js). Manage at /admin/staff/.
+- Schedule: /admin/schedule/. Shift rules in server/shifts.js (Storefront AM
+  7:00-7:30 x3, Storefront PM 2:05-2:30 x3, Cart PM 2:05-2:30 x2, weekdays;
+  home-game evening x2 any day with an on-campus game). Admins mark no-school
+  days on the calendar. Game feed mirrored by server/athletics.js.
+- To go live: fly secrets set ATHLETICS_ICS_URL=... (see fly.toml).
+- Possible follow-ups: per-student iCal feed of their shifts; email reminders;
+  sync no-school days from the district calendar instead of marking by hand.
+
 Built: job-request form (/request/) + team jersey roster tool (/jerseys/), both
 for hartfordschools.org staff, linked from the homepage and Info page.
 - Job requests: server/routes/requests.js -> job_requests table, emails the lab

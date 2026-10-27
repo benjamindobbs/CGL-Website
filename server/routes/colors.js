@@ -1,6 +1,6 @@
 const { Router } = require('express');
 const { db, normalizeHex } = require('../db');
-const { requireStaff } = require('../staffAuth');
+const { requireStaff, requireAdmin } = require('../staffAuth');
 
 const router = Router();
 router.use(requireStaff);
@@ -23,7 +23,7 @@ router.get('/', (_req, res) => {
     res.json(listColors());
 });
 
-router.post('/', (req, res) => {
+router.post('/', requireAdmin, (req, res) => {
     const name = cleanName(req.body.name);
     const hex = normalizeHex(req.body.hex);
     if (!name) return res.status(400).json({ error: 'Missing color name' });
@@ -39,7 +39,7 @@ router.post('/', (req, res) => {
     res.status(201).json(db.prepare('SELECT id, name, hex, created_at FROM colors WHERE id = ?').get(info.lastInsertRowid));
 });
 
-router.patch('/:id', (req, res) => {
+router.patch('/:id', requireAdmin, (req, res) => {
     const existing = db.prepare('SELECT * FROM colors WHERE id = ?').get(req.params.id);
     if (!existing) return res.status(404).json({ error: 'Color not found' });
 
@@ -75,7 +75,7 @@ router.patch('/:id', (req, res) => {
     res.json(db.prepare('SELECT id, name, hex, created_at FROM colors WHERE id = ?').get(existing.id));
 });
 
-router.delete('/:id', (req, res) => {
+router.delete('/:id', requireAdmin, (req, res) => {
     const existing = db.prepare('SELECT * FROM colors WHERE id = ?').get(req.params.id);
     if (!existing) return res.status(404).json({ error: 'Color not found' });
 

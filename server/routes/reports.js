@@ -1,10 +1,10 @@
 const { Router } = require('express');
 const { db, ITEM_CATEGORIES, CT_TAX_RATE, TAX_EXEMPT_SQL_LIST } = require('../db');
-const { requireStaff } = require('../staffAuth');
+const { requireAdmin } = require('../staffAuth');
 const { dayBound, etDate } = require('../etDate');
 
 const router = Router();
-router.use(requireStaff);
+router.use(requireAdmin);
 
 const UNFILED = 'Unfiled';
 

@@ -29,10 +29,13 @@
                 <a href="/admin/requests/"><span class="material-symbols-outlined">assignment</span> Job Requests</a>
                 <p class="admin-nav-group">Inventory</p>
                 <a href="/admin/items/"><span class="material-symbols-outlined">inventory_2</span> Item Catalog</a>
-                <a href="/admin/restock/"><span class="material-symbols-outlined">add_box</span> Restock</a>
-                <a href="/admin/storefront/"><span class="material-symbols-outlined">point_of_sale</span> Storefront Sale</a>
+                <a href="/admin/restock/" class="admin-only" hidden><span class="material-symbols-outlined">add_box</span> Restock</a>
+                <a href="/admin/storefront/" class="admin-only" hidden><span class="material-symbols-outlined">point_of_sale</span> Storefront Sale</a>
+                <p class="admin-nav-group">Staff</p>
+                <a href="/admin/schedule/"><span class="material-symbols-outlined">calendar_month</span> Shift Schedule</a>
+                <a href="/admin/staff/" class="admin-only" hidden><span class="material-symbols-outlined">group</span> Staff Accounts</a>
                 <p class="admin-nav-group">Records</p>
-                <a href="/admin/transactions/"><span class="material-symbols-outlined">account_balance</span> Transactions</a>
+                <a href="/admin/transactions/" class="admin-only" hidden><span class="material-symbols-outlined">account_balance</span> Transactions</a>
                 <a href="/admin/labels/"><span class="material-symbols-outlined">qr_code_2</span> QR Label Sheets</a>
             </nav>
             <div class="admin-sidebar-foot">
@@ -315,7 +318,7 @@
             qtyInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); addToSale(); } });
 
             renderSale();
-        });
+        }, { adminOnly: true });
     </script>
     <script src="/scripts/admin-shell.js"></script>
 </body>

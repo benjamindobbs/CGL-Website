@@ -1,6 +1,6 @@
 const { Router } = require('express');
 const { db, applyStockDelta, recordTransaction, splitTaxInclusive, isSubcategoryTaxExempt, ITEM_SELECT } = require('../db');
-const { requireStaff } = require('../staffAuth');
+const { requireAdmin } = require('../staffAuth');
 
 function variantLabel(item) {
     const v = [item.variant_color, item.variant_size].filter(Boolean).join(' ');
@@ -8,7 +8,7 @@ function variantLabel(item) {
 }
 
 const router = Router();
-router.use(requireStaff);
+router.use(requireAdmin);
 
 function findItem(uuid) {
     return db.prepare(`${ITEM_SELECT} WHERE i.uuid = ?`).get(uuid);

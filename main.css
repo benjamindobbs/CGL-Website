@@ -2171,10 +2171,12 @@ nav a.nav-hoco .material-symbols-outlined {
 /* ===================================================================
    Role-gated elements (any element, not just nav tabs). Revealed by
    scripts/nav-auth.js: .staff-only for a whitelisted staff session,
-   .district-only for a @hartfordschools.org staff session.
+   .district-only for a @hartfordschools.org staff session. .admin-only
+   (admin-role staff, inside /admin/*) is revealed by scripts/staff-guard.js.
    =================================================================== */
 .staff-only[hidden],
-.district-only[hidden] {
+.district-only[hidden],
+.admin-only[hidden] {
     display: none !important;
 }
 
@@ -2414,6 +2416,9 @@ nav a.nav-hoco .material-symbols-outlined {
 .admin-nav {
     flex: 1;
     padding: 12px 10px;
+    /* The public-site `nav` rule makes this a wrapping flex row; without this
+       the rows spread out to fill the sidebar's full height. */
+    align-content: flex-start;
 }
 
 .admin-nav a {

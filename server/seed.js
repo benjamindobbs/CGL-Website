@@ -123,7 +123,8 @@ function seedHocoTicket() {
 // can't be locked out by an accidental removal. Use server/manage-staff.js
 // to add/remove anyone else (including students) against the live DB
 // without a redeploy — additions made that way persist normally; removing
-// one of the names below will not stick across a restart.
+// one of the names below will not stick across a restart. Likewise these are
+// always put back to role 'admin', so nobody can demote the last admin.
 const INITIAL_STAFF = [
     'dobbb001@hartfordschools.org',
     'lestl001@hartfordschools.org',
@@ -131,8 +132,11 @@ const INITIAL_STAFF = [
 ];
 
 function seedStaff() {
-    const insert = db.prepare('INSERT OR IGNORE INTO staff_whitelist(email) VALUES(?)');
-    for (const email of INITIAL_STAFF) insert.run(email);
+    const upsert = db.prepare(`
+        INSERT INTO staff_whitelist(email, role) VALUES(?, 'admin')
+        ON CONFLICT(email) DO UPDATE SET role = 'admin'
+    `);
+    for (const email of INITIAL_STAFF) upsert.run(email);
 }
 
 // Files the seeded uniform / tradition-line rows under matching sub-categories
@@ -192,4 +196,4 @@ function seedColors() {
     `).run(now);
 }
 
-module.exports = { seedUniforms, seedTraditionLine, seedHocoTicket, seedStaff, seedSubcategories, seedColors };
+module.exports = { seedUniforms, seedTraditionLine, seedHocoTicket, seedStaff, seedSubcategories, seedColors, INITIAL_STAFF };

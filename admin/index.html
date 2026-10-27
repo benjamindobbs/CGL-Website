@@ -29,10 +29,13 @@
                 <a href="/admin/requests/"><span class="material-symbols-outlined">assignment</span> Job Requests</a>
                 <p class="admin-nav-group">Inventory</p>
                 <a href="/admin/items/"><span class="material-symbols-outlined">inventory_2</span> Item Catalog</a>
-                <a href="/admin/restock/"><span class="material-symbols-outlined">add_box</span> Restock</a>
-                <a href="/admin/storefront/"><span class="material-symbols-outlined">point_of_sale</span> Storefront Sale</a>
+                <a href="/admin/restock/" class="admin-only" hidden><span class="material-symbols-outlined">add_box</span> Restock</a>
+                <a href="/admin/storefront/" class="admin-only" hidden><span class="material-symbols-outlined">point_of_sale</span> Storefront Sale</a>
+                <p class="admin-nav-group">Staff</p>
+                <a href="/admin/schedule/"><span class="material-symbols-outlined">calendar_month</span> Shift Schedule</a>
+                <a href="/admin/staff/" class="admin-only" hidden><span class="material-symbols-outlined">group</span> Staff Accounts</a>
                 <p class="admin-nav-group">Records</p>
-                <a href="/admin/transactions/"><span class="material-symbols-outlined">account_balance</span> Transactions</a>
+                <a href="/admin/transactions/" class="admin-only" hidden><span class="material-symbols-outlined">account_balance</span> Transactions</a>
                 <a href="/admin/labels/"><span class="material-symbols-outlined">qr_code_2</span> QR Label Sheets</a>
             </nav>
             <div class="admin-sidebar-foot">
@@ -56,6 +59,14 @@
         <div id="staff-ui" style="display:none;">
             <h1>Dashboard</h1>
             <div class="staff-grid">
+                <a class="staff-tool-card" href="/admin/schedule/">
+                    <h3>Shift Schedule</h3>
+                    <p>Sign up for Storefront, Cart and home-game shifts, and see who's working when.</p>
+                </a>
+                <a class="staff-tool-card admin-only" href="/admin/staff/" hidden>
+                    <h3>Staff Accounts</h3>
+                    <p>Add student staff and admins, set roles, and choose the names shown on the schedule.</p>
+                </a>
                 <a class="staff-tool-card" href="/admin/orders/">
                     <h3>Orders</h3>
                     <p>Review and update the status of orders placed online, and view team jersey rosters.</p>
@@ -68,11 +79,11 @@
                     <h3>Item Catalog</h3>
                     <p>Add new store items and set their starting stock.</p>
                 </a>
-                <a class="staff-tool-card" href="/admin/restock/">
+                <a class="staff-tool-card admin-only" href="/admin/restock/" hidden>
                     <h3>Restock</h3>
                     <p>Scan or enter an item UUID to add stock.</p>
                 </a>
-                <a class="staff-tool-card" href="/admin/storefront/">
+                <a class="staff-tool-card admin-only" href="/admin/storefront/" hidden>
                     <h3>Storefront Sale</h3>
                     <p>Scan or enter an item UUID to remove stock sold at the counter.</p>
                 </a>
@@ -80,12 +91,13 @@
                     <h3>QR Label Sheets</h3>
                     <p>Printable 8.5&times;11 pages of item QR codes, grouped by category, for a scan binder.</p>
                 </a>
-                <a class="staff-tool-card" href="/admin/transactions/">
+                <a class="staff-tool-card admin-only" href="/admin/transactions/" hidden>
                     <h3>Transaction Log</h3>
                     <p>Every storefront purchase, filterable by date and account, exportable as CSV.</p>
                 </a>
             </div>
 
+            <div class="admin-only" hidden>
             <h2 style="margin-top:40px;">Register Reconciliation</h2>
             <p class="field-note">Storefront counter sales only, by category, sale location, and how
                 they were tendered. Amounts are <strong>gross</strong> (include sales tax) &mdash;
@@ -139,6 +151,7 @@
                     <tfoot id="income-tfoot"></tfoot>
                 </table>
             </div>
+            </div>
         </div>
     </main>
         </div>
@@ -149,7 +162,7 @@
     <script src="/scripts/auth.js"></script>
     <script src="/scripts/staff-guard.js"></script>
     <script>
-        requireStaffSession(() => {
+        requireStaffSession((session) => {
             const money = (cents) => `$${(cents / 100).toFixed(2)}`;
             const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => (
                 { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]
@@ -249,6 +262,8 @@
                 }
             }
 
+            // Student staff never see the money tables (and the API refuses them).
+            if (!isAdminSession(session)) return;
             document.getElementById('reconciliation-date').addEventListener('change', loadReconciliation);
             loadReconciliation();
             loadIncome();

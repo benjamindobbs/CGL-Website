@@ -1,11 +1,11 @@
 const { Router } = require('express');
 const { db } = require('../db');
-const { requireStaff } = require('../staffAuth');
+const { requireAdmin } = require('../staffAuth');
 const { csvDocument } = require('../csv');
 const { dayBound, etDate } = require('../etDate');
 
 const router = Router();
-router.use(requireStaff);
+router.use(requireAdmin);
 
 function queryTransactions({ from, to, account, paymentMethod, location }) {
     const where = [];

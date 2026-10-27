@@ -1,7 +1,7 @@
 const { Router } = require('express');
 const { db, applyStockDelta, recordTransaction, normalizeCategory, splitTaxInclusive, isSubcategoryTaxExempt, CT_TAX_RATE, ITEM_SELECT } = require('../db');
 const { requireAuth } = require('../auth');
-const { requireStaff } = require('../staffAuth');
+const { requireStaff, requireAdmin } = require('../staffAuth');
 const { stripe, isStripeConfigured, PUBLIC_BASE_URL } = require('../stripe');
 const { TICKET_CHECKOUT_TTL_MS, isTicket, ticketStatus, releaseOpenTicketCheckouts, checkTicketLines } = require('../tickets');
 
@@ -180,7 +180,7 @@ router.get('/', requireStaff, (req, res) => {
     res.json(orders);
 });
 
-router.patch('/:id', requireStaff, async (req, res) => {
+router.patch('/:id', requireAdmin, async (req, res) => {
     const { status } = req.body;
     const allowed = ['new', 'in_progress', 'fulfilled', 'cancelled'];
     if (!allowed.includes(status)) return res.status(400).json({ error: 'Invalid status' });

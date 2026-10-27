@@ -2,7 +2,7 @@ const { Router } = require('express');
 const multer = require('multer');
 const { db, randomUUID, JOB_CATEGORIES } = require('../db');
 const { requireDistrictStaff } = require('../auth');
-const { requireStaff } = require('../staffAuth');
+const { requireStaff, requireAdmin } = require('../staffAuth');
 const { csvDocument } = require('../csv');
 const { isStorageConfigured, putObject, presignGetUrl, deleteObject } = require('../storage');
 const { sendMail, esc, LAB_INBOX } = require('../mail');
@@ -131,7 +131,7 @@ router.get('/', requireStaff, async (req, res) => {
     res.json(await Promise.all(rows.map(withDownloadUrls)));
 });
 
-router.patch('/:id', requireStaff, (req, res) => {
+router.patch('/:id', requireAdmin, (req, res) => {
     const { status } = req.body || {};
     if (!STATUSES.includes(status)) return res.status(400).json({ error: 'Invalid status' });
     const result = db.prepare('UPDATE job_requests SET status = ?, updated_at = ? WHERE id = ?')
@@ -157,7 +157,7 @@ router.get('/export.csv', requireStaff, (req, res) => {
     res.send(body);
 });
 
-router.delete('/:id', requireStaff, async (req, res) => {
+router.delete('/:id', requireAdmin, async (req, res) => {
     const request = db.prepare('SELECT * FROM job_requests WHERE id = ?').get(req.params.id);
     if (!request) return res.status(404).json({ error: 'Request not found' });
     for (const f of filesFor(request.id)) {
