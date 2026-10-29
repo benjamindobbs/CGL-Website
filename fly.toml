@@ -37,7 +37,9 @@
 #   stripe listen --forward-to localhost:8080/api/payments/webhook
 #   (use the whsec_ it prints, plus PUBLIC_BASE_URL=http://localhost:8080)
 #
-# Job-request emails (Resend). Sending domain madein.school is verified in Resend.
+# Job-request + store-order emails (Resend). Sending domain madein.school is
+# verified in Resend. LAB_INBOX (comma-separated) gets both kinds of notice;
+# customers get their own confirmation from MAIL_FROM_ORDERS.
 #   fly secrets set -a cgl-website RESEND_API_KEY=re_xxx
 # Without it, isMailConfigured() is false: requests still save, the send is just
 # skipped with a logged warning. From/reply-to can be overridden with the

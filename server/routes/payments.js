@@ -1,6 +1,7 @@
 const express = require('express');
 const { db, applyStockDelta, recordTransaction, normalizeCategory } = require('../db');
 const { stripe, isStripeConfigured, STRIPE_WEBHOOK_SECRET } = require('../stripe');
+const { sendOrderEmails } = require('../orderMail');
 
 const router = express.Router();
 
@@ -48,6 +49,8 @@ function settlePaidOrder(order, paymentIntentId) {
             actorUserKey: order.user_key,
         });
     }
+
+    sendOrderEmails(order.id);
 }
 
 // Stripe needs the raw body to verify the signature, so this route parses its

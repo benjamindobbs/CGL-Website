@@ -22,7 +22,7 @@ if (!isMailConfigured()) {
 }
 
 // Resolves true on a 2xx from Resend, false otherwise (never throws).
-async function sendMail({ to, subject, html, replyTo = DEFAULT_REPLY_TO }) {
+async function sendMail({ to, subject, html, replyTo = DEFAULT_REPLY_TO, from = FROM }) {
     if (!isMailConfigured()) {
         console.warn(`[mail] skipped (no key): "${subject}" -> ${Array.isArray(to) ? to.join(', ') : to}`);
         return false;
@@ -35,7 +35,7 @@ async function sendMail({ to, subject, html, replyTo = DEFAULT_REPLY_TO }) {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                from: FROM,
+                from,
                 to: Array.isArray(to) ? to : [to],
                 reply_to: replyTo,
                 subject,

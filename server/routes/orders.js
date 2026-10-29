@@ -4,6 +4,7 @@ const { requireAuth } = require('../auth');
 const { requireStaff, requireAdmin } = require('../staffAuth');
 const { stripe, isStripeConfigured, PUBLIC_BASE_URL } = require('../stripe');
 const { TICKET_CHECKOUT_TTL_MS, isTicket, ticketStatus, releaseOpenTicketCheckouts, checkTicketLines } = require('../tickets');
+const { sendOrderEmails } = require('../orderMail');
 
 const router = Router();
 
@@ -101,6 +102,7 @@ router.post('/', requireAuth, async (req, res) => {
         for (const l of lines) {
             applyStockDelta({ itemUuid: l.item.uuid, delta: -l.qty, reason: 'order', actorUserKey: req.userKey, refOrderId: orderId });
         }
+        sendOrderEmails(orderId);
         return res.status(201).json({ orderId, free: true });
     }
 
