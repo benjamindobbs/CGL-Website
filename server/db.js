@@ -82,6 +82,26 @@ db.exec(`
     -- (routes/requests.js). Separate from the store orders table: no payment, no
     -- stock, tracked by the lab through the status column. Artwork lives in object
     -- storage (server/storage.js); job_request_files holds one row per file.
+    --   Apparel decoration (category in DECORATION_CATEGORIES) adds the garment
+    --   columns below plus job_request_locations / job_request_colors /
+    --   job_request_sizes rows. They stay '' for every other category and for
+    --   requests made before them.
+    --   garment_type : one of GARMENT_TYPES; garment_other is the write-in for 'Other'.
+    --   blank_ref    : optional blank model name or supplier link, free text.
+    --   garment_color: the job_request_colors names joined with ', ', kept for
+    --                  one-line displays (CSV, email subject lines).
+    --   qty_mode     : 'total' (one whole number per color) or 'sizes' (a size
+    --                  breakdown per color). quantity holds the grand total.
+    --                  '' = the original free-text quantity.
+    --   item_size    : required for SIZED_CATEGORIES (banner, stickers...), free
+    --                  text such as "3 ft x 6 ft".
+    --   surface_type : SURFACE_TYPES, for SURFACE_CATEGORIES; surface_other is
+    --                  the write-in for 'Other'.
+    --   jersey_job_id: the team roster (jersey_jobs) imported on a decoration
+    --                  request, or NULL. Its players are copied into
+    --                  job_request_roster at submit, so later roster edits don't
+    --                  change a running job. roster_name / jersey_style are
+    --                  copied the same way ('' with no roster).
     CREATE TABLE IF NOT EXISTS job_requests (
         id             INTEGER PRIMARY KEY AUTOINCREMENT,
         user_key       TEXT    NOT NULL,
@@ -96,10 +116,107 @@ db.exec(`
         description    TEXT    NOT NULL DEFAULT '',
         status         TEXT    NOT NULL DEFAULT 'new'
                         CHECK(status IN ('new','in_progress','quoted','complete','cancelled')),
+        garment_type   TEXT    NOT NULL DEFAULT '',
+        garment_other  TEXT    NOT NULL DEFAULT '',
+        blank_ref      TEXT    NOT NULL DEFAULT '',
+        garment_color  TEXT    NOT NULL DEFAULT '',
+        qty_mode       TEXT    NOT NULL DEFAULT '',
+        item_size      TEXT    NOT NULL DEFAULT '',
+        surface_type   TEXT    NOT NULL DEFAULT '',
+        surface_other  TEXT    NOT NULL DEFAULT '',
+        jersey_job_id  INTEGER,
+        roster_name    TEXT    NOT NULL DEFAULT '',
+        jersey_style   TEXT    NOT NULL DEFAULT '',
         created_at     INTEGER NOT NULL,
         updated_at     INTEGER NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_job_requests_status ON job_requests(status);
+
+    -- One row per ticked design location on a decoration request.
+    --   location  : one of DESIGN_LOCATIONS; other_text is the write-in for 'Other'.
+    --   colors    : '1'..'15' (capped per method by DECORATION_COLOR_LIMITS),
+    --               'not_sure', or '' when not asked (DTF is full color).
+    --   name_number: roster names/numbers printed here: one of JERSEY_OPTIONS,
+    --               or '' for an ordinary design.
+    --   method    : '' = the request's own process, or 'dtf' / 'embroidery' for
+    --               a name/number location done another way (Full Chest/Back
+    --               names are always DTF; Front Pocket/Sleeve pick one).
+    --   dtf_ack   : 1 when the requester acknowledged that names/numbers on
+    --               Full Chest/Back are DTF transfers on a non-DTF job.
+    CREATE TABLE IF NOT EXISTS job_request_locations (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        request_id  INTEGER NOT NULL,
+        sort_order  INTEGER NOT NULL DEFAULT 0,
+        location    TEXT    NOT NULL,
+        other_text  TEXT    NOT NULL DEFAULT '',
+        colors      TEXT    NOT NULL DEFAULT '',
+        name_number TEXT    NOT NULL DEFAULT '',
+        method      TEXT    NOT NULL DEFAULT '',
+        dtf_ack     INTEGER NOT NULL DEFAULT 0
+    );
+    CREATE INDEX IF NOT EXISTS idx_job_request_locations_request ON job_request_locations(request_id);
+
+    -- One row per garment color on a decoration request ("Add Another Color").
+    --   qty: that color's total (entered in 'total' mode, the sum of its
+    --        job_request_sizes rows in 'sizes' mode).
+    CREATE TABLE IF NOT EXISTS job_request_colors (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        request_id INTEGER NOT NULL,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        color      TEXT    NOT NULL,
+        qty        INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_job_request_colors_request ON job_request_colors(request_id);
+
+    -- Qty by Size breakdown (qty_mode = 'sizes'), per job_request_colors row.
+    -- Only sizes with qty > 0 are stored.
+    CREATE TABLE IF NOT EXISTS job_request_sizes (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        request_id INTEGER NOT NULL,
+        color_id   INTEGER,
+        size       TEXT    NOT NULL,
+        qty        INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_job_request_sizes_request ON job_request_sizes(request_id);
+
+    -- The roster's players, copied from jersey_players when a team request is
+    -- submitted (see job_requests.jersey_job_id).
+    CREATE TABLE IF NOT EXISTS job_request_roster (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        request_id INTEGER NOT NULL,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        name       TEXT    NOT NULL,
+        number     TEXT    NOT NULL DEFAULT '',
+        size       TEXT    NOT NULL DEFAULT '',
+        color      TEXT    NOT NULL DEFAULT '',
+        info       TEXT    NOT NULL DEFAULT ''
+    );
+    CREATE INDEX IF NOT EXISTS idx_job_request_roster_request ON job_request_roster(request_id);
+
+    -- Job packets: the JSON file ClassicalKenKen imports as a live Work Event
+    -- (routes/packets.js, server/jobPacket.js). One per job request, or a house
+    -- job with no request behind it (request_id NULL).
+    --   job_number : CGL-<yy>-<seq>, assigned on first save and never changed —
+    --                ClassicalKenKen updates the existing job when it sees the
+    --                same number again. yy is the school year's starting year
+    --                (flips July 1, ET); seq restarts at 1 each school year.
+    --   data       : the packet body (everything but job_number), as JSON. The
+    --                lab's edits, including corrections to the requester's
+    --                answers, live here; nested lists (quantities, placements,
+    --                skills) make a JSON column simpler than child tables.
+    CREATE TABLE IF NOT EXISTS job_packets (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        request_id  INTEGER UNIQUE,
+        job_number  TEXT    NOT NULL UNIQUE,
+        school_year INTEGER NOT NULL,
+        seq         INTEGER NOT NULL,
+        data        TEXT    NOT NULL DEFAULT '{}',
+        created_by  TEXT    NOT NULL DEFAULT '',
+        updated_by  TEXT    NOT NULL DEFAULT '',
+        created_at  INTEGER NOT NULL,
+        updated_at  INTEGER NOT NULL,
+        UNIQUE(school_year, seq)
+    );
 
     CREATE TABLE IF NOT EXISTS job_request_files (
         id           INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -368,6 +485,27 @@ const JOB_CATEGORIES = [
 ];
 const JERSEY_SIZES = ['S', 'M', 'L', 'XL', '2XL', '3XL', '4XL'];
 
+// Apparel decoration fields on the job request form. These labels are also the
+// values ClassicalKenKen's job packet import recognizes, so keep them exact.
+const DECORATION_CATEGORIES = ['Screen Printing', 'Embroidery', 'DTF Transfer (Full Color)'];
+const DESIGN_LOCATIONS = ['Full Chest', 'Full Back', 'Front Pocket', 'Sleeve', 'Other'];
+const GARMENT_TYPES = ['Tee-Shirt', 'Long Sleeve Tee', 'Crew Neck', 'Pull Over', 'Full Zip', 'Polo', 'Other'];
+const APPAREL_SIZES = ['YS', 'YM', 'YL', 'YXL', 'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL'];
+// Max colors per design location: the screen presses are 4-color. DTF is full
+// color, so it isn't asked.
+const DECORATION_COLOR_LIMITS = { 'Screen Printing': 4, 'Embroidery': 15 };
+// Print/cut jobs that need a finished size, and the ones that also ask what
+// surface the graphic goes on.
+const SIZED_CATEGORIES = ['Banner', 'Stickers, Decals & Signs'];
+const SURFACE_CATEGORIES = ['Stickers, Decals & Signs'];
+const SURFACE_TYPES = ['Wall', 'Window', 'Floor', 'Vehicle', 'Sign', 'Other', 'Not sure yet'];
+// Team rosters: what a "Use for Name/Number" location prints. Names/numbers
+// on the chest or back are always DTF transfers; on a pocket or sleeve the
+// requester picks DTF or embroidery (embroidery takes up to 15 thread colors).
+const JERSEY_OPTIONS = { name_number: 'Name & Number', name: 'Name Only', number: 'Number Only' };
+const NAME_NUMBER_DTF_ONLY = ['Full Chest', 'Full Back'];
+const NAME_NUMBER_METHOD_CHOICE = ['Front Pocket', 'Sleeve'];
+
 function normalizeCategory(value) {
     return ITEM_CATEGORIES.includes(value) ? value : DEFAULT_CATEGORY;
 }
@@ -375,7 +513,7 @@ function normalizeCategory(value) {
 // --- Schema migrations -------------------------------------------------------
 // Bump SCHEMA_VERSION and add a matching `if (fromVersion < N)` block for each
 // change. PRAGMA user_version persists in the DB file, so each block runs once.
-const SCHEMA_VERSION = 10;
+const SCHEMA_VERSION = 11;
 const fromVersion = db.prepare('PRAGMA user_version').get().user_version;
 
 // True when the table already has the given column (used to make ADD COLUMN
@@ -562,6 +700,28 @@ if (!tableHasColumn('staff_whitelist', 'display_name')) {
     db.exec("ALTER TABLE staff_whitelist ADD COLUMN display_name TEXT NOT NULL DEFAULT ''");
 }
 
+// v11: apparel decoration and print/cut size fields on job requests.
+// Column-guarded like v9. The child tables and job_packets come from CREATE
+// TABLE IF NOT EXISTS above. Existing requests keep '' everywhere and render
+// as before.
+for (const col of ['garment_type', 'garment_other', 'blank_ref', 'garment_color', 'qty_mode',
+    'item_size', 'surface_type', 'surface_other', 'roster_name', 'jersey_style']) {
+    if (!tableHasColumn('job_requests', col)) {
+        db.exec(`ALTER TABLE job_requests ADD COLUMN ${col} TEXT NOT NULL DEFAULT ''`);
+    }
+}
+if (!tableHasColumn('job_requests', 'jersey_job_id')) {
+    db.exec('ALTER TABLE job_requests ADD COLUMN jersey_job_id INTEGER');
+}
+if (!tableHasColumn('job_request_sizes', 'color_id')) {
+    db.exec('ALTER TABLE job_request_sizes ADD COLUMN color_id INTEGER');
+}
+for (const [col, type] of [['name_number', "TEXT NOT NULL DEFAULT ''"], ['method', "TEXT NOT NULL DEFAULT ''"], ['dtf_ack', 'INTEGER NOT NULL DEFAULT 0']]) {
+    if (!tableHasColumn('job_request_locations', col)) {
+        db.exec(`ALTER TABLE job_request_locations ADD COLUMN ${col} ${type}`);
+    }
+}
+
 if (fromVersion < SCHEMA_VERSION) {
     db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`);
 }
@@ -656,6 +816,28 @@ function getItem(uuid) {
     return db.prepare(`${ITEM_SELECT} WHERE i.uuid = ?`).get(uuid);
 }
 
+// A job request's apparel decoration child rows: design locations, one entry
+// per garment color as { color, qty, sizes: [{ size, qty }] } (sizes is empty
+// in 'total' mode), and the copied roster players. All empty for other
+// categories and older requests.
+function getRequestDecoration(requestId) {
+    const sizes = db.prepare('SELECT color_id, size, qty FROM job_request_sizes WHERE request_id = ? ORDER BY id').all(requestId);
+    const colors = db.prepare('SELECT id, color, qty FROM job_request_colors WHERE request_id = ? ORDER BY sort_order, id').all(requestId)
+        .map((c) => ({
+            color: c.color,
+            qty: c.qty,
+            sizes: sizes.filter((s) => s.color_id === c.id).map(({ size, qty }) => ({ size, qty })),
+        }));
+    return {
+        locations: db.prepare(`
+            SELECT location, other_text, colors, name_number, method, dtf_ack
+            FROM job_request_locations WHERE request_id = ? ORDER BY sort_order, id
+        `).all(requestId),
+        colors,
+        roster: db.prepare('SELECT name, number, size, color, info FROM job_request_roster WHERE request_id = ? ORDER BY sort_order, id').all(requestId),
+    };
+}
+
 // Cancels orders whose shopper never finished Stripe Checkout. Only touches
 // 'unpaid' orders (nothing was charged, no stock/ledger movement to undo) older
 // than maxAgeMs. A late webhook still wins if payment actually completes first —
@@ -675,5 +857,8 @@ module.exports = {
     ITEM_CATEGORIES, DEFAULT_CATEGORY, normalizeCategory, normalizeHex,
     CT_TAX_RATE, splitTaxInclusive, isSubcategoryTaxExempt, TAX_EXEMPT_SQL_LIST,
     JOB_CATEGORIES, JERSEY_SIZES,
-    ITEM_SELECT, getItem, sweepStaleUnpaidOrders,
+    DECORATION_CATEGORIES, DESIGN_LOCATIONS, GARMENT_TYPES, APPAREL_SIZES, DECORATION_COLOR_LIMITS,
+    SIZED_CATEGORIES, SURFACE_CATEGORIES, SURFACE_TYPES,
+    JERSEY_OPTIONS, NAME_NUMBER_DTF_ONLY, NAME_NUMBER_METHOD_CHOICE,
+    ITEM_SELECT, getItem, getRequestDecoration, sweepStaleUnpaidOrders,
 };

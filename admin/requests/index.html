@@ -35,6 +35,15 @@
             border-radius: 8px;
             padding: 6px 8px;
         }
+
+        /* Apparel decoration details under the process / quantity. */
+        .decor-detail {
+            display: block;
+            margin-top: 4px;
+            font-size: 0.8rem;
+            line-height: 1.4;
+            color: #555;
+        }
     </style>
 </head>
 
@@ -52,6 +61,7 @@
                 <p class="admin-nav-group">Fulfillment</p>
                 <a href="/admin/orders/"><span class="material-symbols-outlined">receipt_long</span> Orders</a>
                 <a href="/admin/requests/"><span class="material-symbols-outlined">assignment</span> Job Requests</a>
+                <a href="/admin/packets/" class="admin-only" hidden><span class="material-symbols-outlined">package_2</span> Job Packets</a>
                 <p class="admin-nav-group">Inventory</p>
                 <a href="/admin/items/"><span class="material-symbols-outlined">inventory_2</span> Item Catalog</a>
                 <a href="/admin/restock/" class="admin-only" hidden><span class="material-symbols-outlined">add_box</span> Restock</a>
@@ -96,9 +106,14 @@
                         <option value="cancelled">Cancelled</option>
                     </select>
                 </div>
-                <button type="button" id="csv-btn" class="submit-btn" style="width:auto;">
-                    <span class="material-symbols-outlined">download</span> Download CSV
-                </button>
+                <div class="labels-actions">
+                    <a href="/admin/packets/?house=1" class="secondary-btn admin-only" style="width:auto;margin:0;text-decoration:none;" hidden>
+                        <span class="material-symbols-outlined" style="vertical-align:middle;">add</span> New house job
+                    </a>
+                    <button type="button" id="csv-btn" class="submit-btn" style="width:auto;">
+                        <span class="material-symbols-outlined">download</span> Download CSV
+                    </button>
+                </div>
             </div>
 
             <div style="overflow-x:auto;">
@@ -115,6 +130,7 @@
                             <th>Needed By</th>
                             <th>Artwork</th>
                             <th>Status</th>
+                            <th>Job Packet</th>
                         </tr>
                     </thead>
                     <tbody id="requests-tbody"></tbody>
@@ -152,6 +168,67 @@
             }
             window.updateStatus = updateStatus;
 
+            const colorsText = (c) => (c === 'not_sure' ? 'colors not sure' : c ? `${c} color${c === '1' ? '' : 's'}` : '');
+            const JERSEY_OPTIONS = { name_number: 'Name & Number', name: 'Name Only', number: 'Number Only' };
+            const METHOD_TEXT = { dtf: 'DTF', embroidery: 'embroidery' };
+
+            async function downloadBlob(path, filename, errorText) {
+                const res = await authFetch(path);
+                if (!res.ok) { alert(errorText); return; }
+                const url = URL.createObjectURL(await res.blob());
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                URL.revokeObjectURL(url);
+            }
+            window.downloadRoster = (id) => downloadBlob(`/api/requests/${id}/roster.csv`, `request-${id}-roster.csv`, 'Could not download the roster.');
+
+            // Garment, colors, blank and design locations for apparel decoration
+            // requests; finished size and surface for banners and stickers; ''
+            // for other categories and older requests.
+            function decorationDetail(r) {
+                const surface = r.surface_type === 'Other' ? `Other: ${r.surface_other}` : r.surface_type;
+                const printCut = [r.item_size, surface].filter(Boolean).join(' · ');
+                if (!r.garment_type) return printCut ? `<span class="decor-detail">${esc(printCut)}</span>` : '';
+                const garment = r.garment_type === 'Other' ? `Other: ${r.garment_other}` : r.garment_type;
+                const blank = r.blank_ref
+                    ? (/^https?:\/\//i.test(r.blank_ref)
+                        ? ` · <a href="${esc(r.blank_ref)}" target="_blank" rel="noopener">blank</a>`
+                        : ` · ${esc(r.blank_ref)}`)
+                    : '';
+                const locations = r.locations.map((l) => {
+                    const name = l.location === 'Other' ? `Other: ${l.other_text}` : l.location;
+                    const details = [JERSEY_OPTIONS[l.name_number], METHOD_TEXT[l.method], colorsText(l.colors)].filter(Boolean);
+                    return esc(details.length ? `${name} (${details.join(', ')})` : name);
+                }).join('<br>');
+                const roster = r.roster.length
+                    ? `<span class="decor-detail">Team roster: ${esc(r.roster_name)}, ${r.roster.length} players, ${esc(r.jersey_style)} jerseys · ` +
+                      `<button type="button" class="link-btn" onclick="downloadRoster(${r.id})">Roster CSV</button></span>`
+                    : '';
+                return `<span class="decor-detail">${esc(r.garment_color)} ${esc(garment)}${blank}</span>` +
+                    `<span class="decor-detail">${locations}</span>${roster}`;
+            }
+
+            // Grand total, then each color's total or size breakdown.
+            function quantityCell(r) {
+                if (!r.colors.length) return esc(r.quantity || '—');
+                const groups = r.colors.map((c) => {
+                    const sizes = c.sizes.map((s) => `${esc(s.size)}&nbsp;${s.qty}`).join(', ');
+                    return `<span class="decor-detail"><b>${esc(c.color)}</b>: ${sizes ? `${sizes} (${c.qty})` : c.qty}</span>`;
+                }).join('');
+                return `<strong>${esc(r.quantity)}</strong>${groups}`;
+            }
+
+            function packetCell(r) {
+                if (r.job_number) {
+                    return canEdit ? `<a href="/admin/packets/?id=${r.packet_id}">${esc(r.job_number)}</a>` : esc(r.job_number);
+                }
+                return canEdit ? `<a href="/admin/packets/?request=${r.id}" class="link-btn">Build packet</a>` : '—';
+            }
+
             function fileLinks(files) {
                 if (!files || !files.length) return '—';
                 return files.map((f) => f.downloadUrl
@@ -176,29 +253,19 @@
                             <td class="job-desc-cell"><strong>${esc(r.job_name)}</strong>${r.description ? `<div class="desc-box">${esc(r.description)}</div>` : ''}</td>
                             <td>${esc(r.building || '—')}</td>
                             <td>${esc(r.phone || '—')}</td>
-                            <td>${esc(r.category)}</td>
-                            <td>${esc(r.quantity || '—')}</td>
+                            <td>${esc(r.category)}${decorationDetail(r)}</td>
+                            <td>${quantityCell(r)}</td>
                             <td>${esc(r.needed_by || '—')}</td>
                             <td>${fileLinks(r.files)}</td>
                             <td><select onchange="updateStatus(${r.id}, this.value)" ${canEdit ? '' : 'disabled'}>${statusOptions}</select></td>
+                            <td>${packetCell(r)}</td>
                         </tr>
                     `;
-                }).join('') || '<tr><td colspan="10" class="placeholder-text">No requests yet.</td></tr>';
+                }).join('') || '<tr><td colspan="11" class="placeholder-text">No requests yet.</td></tr>';
             }
 
-            $('csv-btn').addEventListener('click', async () => {
-                const res = await authFetch('/api/requests/export.csv');
-                if (!res.ok) { alert('Could not download CSV.'); return; }
-                const blob = await res.blob();
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `job-requests-${new Date().toISOString().slice(0, 10)}.csv`;
-                document.body.appendChild(a);
-                a.click();
-                a.remove();
-                URL.revokeObjectURL(url);
-            });
+            $('csv-btn').addEventListener('click', () => downloadBlob('/api/requests/export.csv',
+                `job-requests-${new Date().toISOString().slice(0, 10)}.csv`, 'Could not download CSV.'));
 
             $('status-filter').addEventListener('change', load);
             load();

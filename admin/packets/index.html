@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Job Packets</title>
+
+    <link rel="icon" type="image/x-icon" href="/assets/favicon.ico">
+    <link rel="stylesheet" href="/main.css">
+    <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+
+    <style>
+        /* The whole form sits in one fieldset so a locked packet can disable
+           every control at once. */
+        .packet-fieldset {
+            border: 0;
+            margin: 0;
+            padding: 0;
+            min-width: 0;
+        }
+    </style>
+</head>
+
+<body class="form-page admin-page">
+    <div class="admin-layout">
+        <aside class="admin-sidebar" id="admin-sidebar">
+            <div class="admin-sidebar-head">
+                <img src="/assets/CGL-Logo.svg" alt="Classical Graphics Lab">
+                <button class="admin-sidebar-close" id="admin-sidebar-close" type="button" aria-label="Close menu">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+            <nav class="admin-nav">
+                <a href="/admin/" data-title="Dashboard"><span class="material-symbols-outlined">dashboard</span> Dashboard</a>
+                <p class="admin-nav-group">Fulfillment</p>
+                <a href="/admin/orders/"><span class="material-symbols-outlined">receipt_long</span> Orders</a>
+                <a href="/admin/requests/"><span class="material-symbols-outlined">assignment</span> Job Requests</a>
+                <a href="/admin/packets/" class="admin-only" hidden><span class="material-symbols-outlined">package_2</span> Job Packets</a>
+                <p class="admin-nav-group">Inventory</p>
+                <a href="/admin/items/"><span class="material-symbols-outlined">inventory_2</span> Item Catalog</a>
+                <a href="/admin/restock/" class="admin-only" hidden><span class="material-symbols-outlined">add_box</span> Restock</a>
+                <a href="/admin/storefront/" class="admin-only" hidden><span class="material-symbols-outlined">point_of_sale</span> Storefront Sale</a>
+                <p class="admin-nav-group">Staff</p>
+                <a href="/admin/schedule/"><span class="material-symbols-outlined">calendar_month</span> Shift Schedule</a>
+                <a href="/admin/staff/" class="admin-only" hidden><span class="material-symbols-outlined">group</span> Staff Accounts</a>
+                <p class="admin-nav-group">Records</p>
+                <a href="/admin/transactions/" class="admin-only" hidden><span class="material-symbols-outlined">account_balance</span> Transactions</a>
+                <a href="/admin/labels/"><span class="material-symbols-outlined">qr_code_2</span> QR Label Sheets</a>
+            </nav>
+            <div class="admin-sidebar-foot">
+                <a href="/">&larr; Public site</a>
+                <button id="admin-signout" type="button">Sign out</button>
+            </div>
+        </aside>
+
+        <div class="admin-main">
+            <header class="admin-topbar">
+                <button class="admin-menu-btn" id="admin-menu-btn" type="button" aria-label="Open menu">
+                    <span class="material-symbols-outlined">menu</span>
+                </button>
+                <span class="admin-topbar-title" id="admin-topbar-title"></span>
+                <span class="admin-topbar-user" id="admin-topbar-user"></span>
+            </header>
+
+    <main class="staff-container">
+        <p id="loading-status" class="placeholder-text">Checking sign-in&hellip;</p>
+
+        <div id="staff-ui" style="display:none;">
+            <!-- List of every packet (no query string). -->
+            <div id="list-view" hidden>
+                <div class="labels-controls">
+                    <div>
+                        <h1 style="margin:0;">Job Packets</h1>
+                        <p class="field-note">Each packet is a JSON file ClassicalKenKen imports as a live job (Work Events &rarr; Import Job Packet). Build one from a request on the <a href="/admin/requests/">Job Requests</a> page.</p>
+                    </div>
+                    <a href="?house=1" class="submit-btn" style="width:auto;text-decoration:none;padding:12px 20px;font-size:1rem;">
+                        <span class="material-symbols-outlined">add</span> New house job
+                    </a>
+                </div>
+                <div style="overflow-x:auto;">
+                    <table class="admin-table">
+                        <thead>
+                            <tr>
+                                <th>Job #</th>
+                                <th>Customer</th>
+                                <th>Request</th>
+                                <th>Method</th>
+                                <th>Updated</th>
+                            </tr>
+                        </thead>
+                        <tbody id="packets-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- One packet (?id=, ?request= or ?house=1). -->
+            <div id="builder-view" hidden>
+                <a id="back-link" href="/admin/packets/">&larr; All packets</a>
+                <h1 id="packet-title" style="margin-bottom:0;"></h1>
+                <p id="packet-subtitle" class="field-note"></p>
+
+                <div id="lock-banner" class="packet-banner" hidden></div>
+                <section id="request-summary" class="packet-section packet-request" hidden></section>
+
+                <fieldset id="packet-fields" class="packet-fieldset">
+                    <section class="packet-section">
+                        <h2>Order</h2>
+                        <div class="packet-grid">
+                            <div class="form-group">
+                                <label for="f-customer">Customer</label>
+                                <input type="text" id="f-customer" placeholder="e.g. Ms. Rivera (Bulkeley HS)">
+                                <small class="field-note">Starts the job's title in ClassicalKenKen.</small>
+                            </div>
+                            <div class="form-group">
+                                <label for="f-contact">Contact</label>
+                                <input type="text" id="f-contact">
+                            </div>
+                            <div class="form-group">
+                                <label for="f-due">Due date</label>
+                                <input type="date" id="f-due">
+                            </div>
+                            <div class="form-group">
+                                <label for="f-invoice">Invoice ref (optional)</label>
+                                <input type="text" id="f-invoice">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="checkbox-item" style="display:inline-flex;text-transform:none;letter-spacing:0;">
+                                <input type="checkbox" id="f-house"> House job (the lab's own work, e.g. store stock)
+                            </label>
+                        </div>
+                        <div class="form-group">
+                            <label>Colors &amp; quantity</label>
+                            <div class="qty-mode">
+                                <label class="checkbox-item"><input type="radio" name="qty-mode" value="total" checked> Total</label>
+                                <label class="checkbox-item"><input type="radio" name="qty-mode" value="sizes"> Qty by Size</label>
+                            </div>
+                            <div id="color-qty"></div>
+                            <small id="qty-note" class="field-note"></small>
+                        </div>
+                    </section>
+
+                    <section class="packet-section">
+                        <h2>Product</h2>
+                        <div class="packet-grid">
+                            <div class="form-group">
+                                <label for="f-type">Product type</label>
+                                <select id="f-type">
+                                    <option value="">—</option>
+                                    <option value="garment">Garment</option>
+                                    <option value="substrate">Substrate (banner, sign, decal)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="f-garment">Garment type</label>
+                                <select id="f-garment"></select>
+                                <input type="text" id="f-garment-other" class="decor-other" placeholder="Please specify" hidden>
+                            </div>
+                            <div class="form-group">
+                                <label for="f-item-size">Finished size</label>
+                                <input type="text" id="f-item-size" placeholder="e.g. 3 ft x 6 ft">
+                            </div>
+                            <div class="form-group">
+                                <label for="f-surface">Surface</label>
+                                <select id="f-surface"></select>
+                                <input type="text" id="f-surface-other" class="decor-other" placeholder="Please specify" hidden>
+                            </div>
+                            <div class="form-group">
+                                <label for="f-brand">Blank model</label>
+                                <input type="text" id="f-brand" placeholder="e.g. Gildan 5000">
+                            </div>
+                            <div class="form-group">
+                                <label for="f-blank-url">Blank link</label>
+                                <input type="url" id="f-blank-url" placeholder="https://…">
+                            </div>
+                            <div class="form-group">
+                                <label for="f-supplied">Supplied by</label>
+                                <select id="f-supplied">
+                                    <option value="">—</option>
+                                    <option value="ordered">Ordered by the lab</option>
+                                    <option value="customer">Customer</option>
+                                </select>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="packet-section">
+                        <h2>Process &amp; placement</h2>
+                        <div class="packet-grid">
+                            <div class="form-group">
+                                <label for="f-method">Method</label>
+                                <select id="f-method"></select>
+                            </div>
+                            <div class="form-group">
+                                <label for="f-finish">Media / finish</label>
+                                <input type="text" id="f-finish">
+                            </div>
+                            <div class="form-group">
+                                <label for="f-inks">Inks or thread, one per line</label>
+                                <textarea id="f-inks" rows="3" placeholder="PMS 286 C&#10;White"></textarea>
+                            </div>
+                        </div>
+                        <h3>Placement</h3>
+                        <div class="placement-row placement-head">
+                            <span>Location</span><span>Method / names</span><span>Colors</span><span>Size</span><span>Measured from</span><span>Notes</span><span></span>
+                        </div>
+                        <div id="placement-list"></div>
+                        <div class="form-group">
+                            <button type="button" id="add-placement" class="link-btn">+ Add location</button>
+                        </div>
+                    </section>
+
+                    <section class="packet-section" id="roster-section" hidden>
+                        <h2>Team roster</h2>
+                        <p id="roster-meta" class="field-note" style="margin-top:-8px;margin-bottom:12px;"></p>
+                        <div style="overflow-x:auto;">
+                            <table class="admin-table" style="margin-top:0;">
+                                <thead>
+                                    <tr><th>#</th><th>Name on jersey</th><th>Number</th><th>Size</th><th>Color</th><th>Notes</th></tr>
+                                </thead>
+                                <tbody id="roster-tbody"></tbody>
+                            </table>
+                        </div>
+                        <div class="form-group" style="margin-top:12px;">
+                            <button type="button" id="roster-refresh" class="link-btn" hidden>Refresh from the coach's current roster</button>
+                        </div>
+                    </section>
+
+                    <section class="packet-section">
+                        <h2>Files</h2>
+                        <p class="field-note" style="margin-top:-8px;margin-bottom:16px;">Shared Drive links only. Artwork uploaded with the request expires from its link after an hour, so copy it into the Drive folder first.</p>
+                        <div class="packet-grid">
+                            <div class="form-group">
+                                <label for="f-drive">Drive folder</label>
+                                <input type="url" id="f-drive" placeholder="https://drive.google.com/drive/folders/…">
+                                <small class="field-note">Students see this as "the job folder".</small>
+                            </div>
+                            <div class="form-group">
+                                <label for="f-art">Approved art</label>
+                                <input type="url" id="f-art" placeholder="https://…">
+                            </div>
+                            <div class="form-group">
+                                <label for="f-proof">Proof</label>
+                                <input type="url" id="f-proof" placeholder="https://…">
+                            </div>
+                            <div class="form-group">
+                                <label for="f-stitch">Stitch file</label>
+                                <input type="url" id="f-stitch" placeholder="https://…">
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="packet-section">
+                        <h2>Assessment</h2>
+                        <h3>Roles needed</h3>
+                        <div id="roles-list" class="packet-checks"></div>
+                        <h3>Machines</h3>
+                        <div id="machines-list" class="packet-checks"></div>
+                        <h3>Suggested skills</h3>
+                        <p class="field-note" style="margin-top:-6px;margin-bottom:12px;">Preselected from the method. Students' role skills (Logistics, Marketing) are added in ClassicalKenKen, so leave those off unless the job itself is about them.</p>
+                        <div id="skills-list"></div>
+                    </section>
+                </fieldset>
+
+                <div id="packet-issues" class="packet-issues" hidden></div>
+
+                <div class="packet-actions">
+                    <button type="button" id="save-btn" class="submit-btn">
+                        <span class="material-symbols-outlined">save</span> Save
+                    </button>
+                    <button type="button" id="download-btn" class="secondary-btn">
+                        <span class="material-symbols-outlined" style="vertical-align:middle;">download</span> Download packet
+                    </button>
+                    <span id="save-state" class="packet-save-state"></span>
+                </div>
+            </div>
+        </div>
+    </main>
+        </div>
+    </div>
+    <div class="admin-scrim" id="admin-scrim" hidden></div>
+
+    <script src="https://accounts.google.com/gsi/client" async defer onload="gisLoaded()"></script>
+    <script src="/scripts/auth.js"></script>
+    <script src="/scripts/staff-guard.js"></script>
+    <script src="/scripts/color-qty.js"></script>
+    <script>
+        requireStaffSession(async () => {
+            const $ = (id) => document.getElementById(id);
+            const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => (
+                { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]
+            ));
+            const params = new URLSearchParams(window.location.search);
+            const ref = await (await authFetch('/api/packets/reference')).json();
+            const methodLabel = (code) => (ref.methods.find((m) => m.code === code) || {}).label || code || '—';
+
+            if (!params.get('id') && !params.get('request') && !params.get('house')) return showList();
+
+            // ---- List ----------------------------------------------------
+            async function showList() {
+                $('list-view').hidden = false;
+                const rows = await (await authFetch('/api/packets')).json();
+                $('packets-tbody').innerHTML = rows.map((p) => `
+                    <tr>
+                        <td><a href="?id=${p.id}"><strong>${esc(p.job_number)}</strong></a></td>
+                        <td>${esc(p.customer || '—')}${p.is_house ? ' <span class="status-badge status-new">house</span>' : ''}</td>
+                        <td>${p.request_id ? `${esc(p.job_name)} <span class="status-badge status-${esc(p.status)}">${esc((p.status || '').replace('_', ' '))}</span>` : '—'}</td>
+                        <td>${esc(methodLabel(p.method))}</td>
+                        <td>${new Date(p.updated_at).toLocaleString()}</td>
+                    </tr>
+                `).join('') || '<tr><td colspan="5" class="placeholder-text">No packets yet.</td></tr>';
+            }
+
+            // ---- Builder -------------------------------------------------
+            let view;
+            let dirty = false;
+
+            const draftUrl = params.get('id') ? `/api/packets/${encodeURIComponent(params.get('id'))}`
+                : params.get('house') ? '/api/packets/draft?house=1'
+                : `/api/packets/draft?request=${encodeURIComponent(params.get('request'))}`;
+            const res = await authFetch(draftUrl);
+            const loaded = await res.json().catch(() => ({}));
+            if (loaded.existingId) {
+                window.location.replace(`?id=${loaded.existingId}`);
+                return;
+            }
+            if (!res.ok) {
+                $('builder-view').hidden = false;
+                $('packet-title').textContent = loaded.error || 'Could not load the packet.';
+                $('packet-fields').hidden = true;
+                document.querySelector('.packet-actions').hidden = true;
+                return;
+            }
+            view = loaded;
+            $('builder-view').hidden = false;
+
+            // Static pick-lists.
+            $('f-method').innerHTML = '<option value="">— Pick a method —</option>' +
+                ref.methods.map((m) => `<option value="${m.code}">${esc(m.label)}</option>`).join('');
+            $('f-garment').innerHTML = '<option value="">—</option>' +
+                ref.garmentTypes.map((g) => `<option value="${esc(g)}">${esc(g)}</option>`).join('');
+            $('f-surface').innerHTML = '<option value="">—</option>' +
+                ref.surfaces.map((s) => `<option value="${esc(s)}">${esc(s)}</option>`).join('');
+            // Typing inside it reaches the fieldset's input listener; adding or
+            // removing a color doesn't, so it reports those itself.
+            const colorQty = createColorQtyEditor($('color-qty'), { sizes: ref.sizes, onChange: () => changed() });
+            const checkbox = (name, value, label) =>
+                `<label class="checkbox-item"><input type="checkbox" name="${name}" value="${esc(value)}"> ${esc(label)}</label>`;
+            $('roles-list').innerHTML = ref.roles.map((r) => checkbox('role', r.code, r.label)).join('');
+            $('machines-list').innerHTML = ref.machines.map((m) => checkbox('machine', m.code, m.label)).join('');
+            const skillKey = (s) => `${s.credential}::${s.skill}`;
+            $('skills-list').innerHTML = ref.credentials.map((c) => `
+                <h3 style="text-transform:none;letter-spacing:0;">${esc(c.credential)}</h3>
+                <div class="packet-checks">${c.skills.map((skill) => checkbox('skill', skillKey({ credential: c.credential, skill }), skill)).join('')}</div>
+            `).join('');
+
+            // "Other: <text>" <-> select + write-in.
+            function setLabelPick(selectEl, otherEl, value, labels) {
+                if (value.startsWith('Other:')) {
+                    selectEl.value = 'Other';
+                    otherEl.value = value.slice('Other:'.length).trim();
+                } else {
+                    if (value && !labels.includes(value)) selectEl.add(new Option(value, value));
+                    selectEl.value = value;
+                    otherEl.value = '';
+                }
+                otherEl.hidden = selectEl.value !== 'Other';
+            }
+            const readLabelPick = (selectEl, otherEl) =>
+                (selectEl.value === 'Other' ? `Other: ${otherEl.value.trim()}` : selectEl.value);
+
+            // ---- Placement rows ----
+            // A row's method is its own (team names done as DTF/embroidery) or
+            // the job's. Its color limit follows that method.
+            const rowMethod = (row) => row.querySelector('.pl-method').value || $('f-method').value;
+            const takesColors = (method) => !method || method in ref.colorLimits;
+            function colorOptions(current, method) {
+                const limit = ref.colorLimits[method] || 15;
+                const values = ['', ...Array.from({ length: limit }, (_, i) => String(i + 1)), 'not_sure'];
+                // Keep an out-of-range count visible so the check can flag it.
+                if (current !== '' && !values.includes(current)) values.splice(1, 0, current);
+                return values.map((v) => `<option value="${esc(v)}" ${v === current ? 'selected' : ''}>${
+                    v === '' ? '—' : v === 'not_sure' ? 'Not sure' : esc(v)}</option>`).join('');
+            }
+
+            function addPlacementRow(pl = {}) {
+                const row = document.createElement('div');
+                row.className = 'placement-row';
+                const colors = pl.colors === undefined ? '' : String(pl.colors);
+                const options = (pairs, current) => pairs.map(([v, t]) =>
+                    `<option value="${esc(v)}" ${v === (current || '') ? 'selected' : ''}>${esc(t)}</option>`).join('');
+                row.innerHTML = `
+                    <div class="form-group" style="margin:0;">
+                        <select class="pl-location"><option value="">—</option>${
+                            ref.locations.map((l) => `<option value="${esc(l)}">${esc(l)}</option>`).join('')}</select>
+                        <input type="text" class="pl-other decor-other" placeholder="Please specify" hidden>
+                    </div>
+                    <div class="form-group" style="margin:0;">
+                        <select class="pl-method" aria-label="Method">${options([['', "Job's method"], ...ref.methods.map((m) => [m.code, m.label])], pl.method)}</select>
+                        <select class="pl-jersey decor-other" aria-label="Roster names/numbers">${options([['', 'No names/numbers'], ...Object.entries(ref.jerseyOptions)], pl.name_number)}</select>
+                    </div>
+                    <div class="form-group" style="margin:0;"><select class="pl-colors">${colorOptions(colors, pl.method || $('f-method').value)}</select></div>
+                    <div class="form-group" style="margin:0;"><input type="text" class="pl-size" placeholder="11 in wide" value="${esc(pl.size)}"></div>
+                    <div class="form-group" style="margin:0;"><input type="text" class="pl-from" placeholder="3 in below collar" value="${esc(pl.from)}"></div>
+                    <div class="form-group" style="margin:0;"><input type="text" class="pl-notes" value="${esc(pl.notes)}"></div>
+                    <button type="button" class="remove-btn" aria-label="Remove location">&times;</button>
+                `;
+                const sel = row.querySelector('.pl-location');
+                const other = row.querySelector('.pl-other');
+                setLabelPick(sel, other, pl.location || '', ref.locations);
+                sel.addEventListener('change', () => { other.hidden = sel.value !== 'Other'; });
+                row.querySelector('.remove-btn').addEventListener('click', () => { row.remove(); syncDefaults(); changed(); });
+                row.querySelector('.pl-colors').hidden = !takesColors(pl.method || $('f-method').value);
+                $('placement-list').appendChild(row);
+            }
+
+            function refreshColorPicks() {
+                for (const row of document.querySelectorAll('#placement-list .placement-row')) {
+                    const sel = row.querySelector('.pl-colors');
+                    sel.innerHTML = colorOptions(sel.value, rowMethod(row));
+                    sel.hidden = !takesColors(rowMethod(row));
+                }
+            }
+
+            // ---- Team roster (read-only here; refreshable from the coach's roster) ----
+            let currentRoster = { name: '', jersey_style: '', players: [] };
+            function renderRoster() {
+                const r = currentRoster;
+                const n = r.players.length;
+                const canRefresh = !!(view.request && view.request.jersey_job_id);
+                $('roster-section').hidden = !n && !canRefresh;
+                $('roster-refresh').hidden = !canRefresh;
+                $('roster-meta').textContent = n
+                    ? `${r.name || 'Roster'}: ${n} player${n === 1 ? '' : 's'}, ${r.jersey_style || 'unknown'} jerseys. A location's "Method / names" column says where names and numbers go.`
+                    : 'No players.';
+                $('roster-tbody').innerHTML = r.players.map((p, i) => `
+                    <tr><td>${i + 1}</td><td>${esc(p.name)}</td><td>${esc(p.number || '—')}</td><td>${esc(p.size)}</td><td>${esc(p.color)}</td><td>${esc(p.info)}</td></tr>
+                `).join('');
+            }
+            $('roster-refresh').addEventListener('click', async () => {
+                const res = await authFetch('/api/jerseys');
+                const all = res.ok ? await res.json() : [];
+                const job = all.find((j) => j.id === view.request.jersey_job_id);
+                if (!job) { alert('That roster no longer exists. The copy saved with the request is still here.'); return; }
+                currentRoster = { name: job.job_name, jersey_style: job.jersey_style, players: job.players };
+                renderRoster();
+                changed();
+            });
+
+            // ---- Fill the form from a packet body ----
+            function fill(d) {
+                $('f-customer').value = d.order.customer;
+                $('f-contact').value = d.order.contact;
+                $('f-due').value = d.order.due_date;
+                $('f-invoice').value = d.order.invoice_ref;
+                $('f-house').checked = d.is_house;
+
+                // Quantities -> one editor group per color. Entries with no color
+                // (house jobs, older packets) share a group named product.color.
+                const bySize = d.order.quantities.some((q) => q.size);
+                const groups = [];
+                for (const q of d.order.quantities) {
+                    let g = groups.find((x) => x.color === q.color);
+                    if (!g) groups.push(g = { color: q.color, qty: '', sizes: [] });
+                    if (q.size) g.sizes.push({ size: q.size, qty: q.qty });
+                    else g.qty = q.qty;
+                }
+                if (!groups.length) groups.push({ color: '', qty: '', sizes: [] });
+                if (groups.length === 1 && !groups[0].color) groups[0].color = d.product.color;
+                document.querySelector(`input[name="qty-mode"][value="${bySize ? 'sizes' : 'total'}"]`).checked = true;
+                colorQty.setGroups(groups);
+                syncQtyMode();
+
+                $('f-type').value = d.product.type;
+                setLabelPick($('f-garment'), $('f-garment-other'), d.product.garment_type, ref.garmentTypes);
+                $('f-item-size').value = d.product.size;
+                setLabelPick($('f-surface'), $('f-surface-other'), d.product.surface, ref.surfaces);
+                $('f-brand').value = d.product.brand_style;
+                $('f-blank-url').value = d.product.blank_url;
+                $('f-supplied').value = d.product.supplied_by;
+
+                $('f-method').value = d.process.method;
+                $('f-finish').value = d.process.media_finish;
+                $('f-inks').value = d.process.ink_or_thread.join('\n');
+                $('placement-list').innerHTML = '';
+                d.placement.forEach(addPlacementRow);
+                currentRoster = d.roster;
+                renderRoster();
+
+                $('f-drive').value = d.files.drive_folder_url;
+                $('f-art').value = d.files.approved_art_url;
+                $('f-proof').value = d.files.proof_url;
+                $('f-stitch').value = d.files.stitch_file_url;
+
+                setChecks('role', d.assessment.roles_needed);
+                setChecks('machine', d.assessment.machines);
+                setChecks('skill', d.assessment.suggested_skills.map(skillKey));
+            }
+
+            function setChecks(name, values) {
+                for (const box of document.querySelectorAll(`input[name="${name}"]`)) box.checked = values.includes(box.value);
+            }
+            const readChecks = (name) => [...document.querySelectorAll(`input[name="${name}"]:checked`)].map((b) => b.value);
+
+            // ---- Read the form back into a packet body ----
+            function collect() {
+                const bySize = document.querySelector('input[name="qty-mode"]:checked').value === 'sizes';
+                const groups = colorQty.getGroups();
+                const quantities = groups.flatMap((g) => (bySize
+                    ? g.sizes.filter((s) => Number(s.qty) !== 0).map((s) => ({ size: s.size, qty: s.qty, color: g.color }))
+                    : (g.qty ? [{ size: '', qty: g.qty, color: g.color }] : [])));
+                const colors = [...new Set(groups.map((g) => g.color).filter(Boolean))];
+                return {
+                    is_house: $('f-house').checked,
+                    order: {
+                        customer: $('f-customer').value,
+                        contact: $('f-contact').value,
+                        due_date: $('f-due').value,
+                        quantities,
+                        invoice_ref: $('f-invoice').value,
+                    },
+                    product: {
+                        type: $('f-type').value,
+                        garment_type: readLabelPick($('f-garment'), $('f-garment-other')),
+                        brand_style: $('f-brand').value,
+                        blank_url: $('f-blank-url').value,
+                        color: colors.join(', '),
+                        supplied_by: $('f-supplied').value,
+                        size: $('f-item-size').value,
+                        surface: readLabelPick($('f-surface'), $('f-surface-other')),
+                    },
+                    process: {
+                        method: $('f-method').value,
+                        ink_or_thread: $('f-inks').value.split('\n'),
+                        media_finish: $('f-finish').value,
+                    },
+                    placement: [...document.querySelectorAll('#placement-list .placement-row')].map((row) => ({
+                        location: readLabelPick(row.querySelector('.pl-location'), row.querySelector('.pl-other')),
+                        colors: row.querySelector('.pl-colors').value,
+                        size: row.querySelector('.pl-size').value,
+                        from: row.querySelector('.pl-from').value,
+                        notes: row.querySelector('.pl-notes').value,
+                        method: row.querySelector('.pl-method').value,
+                        name_number: row.querySelector('.pl-jersey').value,
+                    })),
+                    roster: currentRoster,
+                    files: {
+                        drive_folder_url: $('f-drive').value,
+                        approved_art_url: $('f-art').value,
+                        proof_url: $('f-proof').value,
+                        stitch_file_url: $('f-stitch').value,
+                    },
+                    assessment: {
+                        roles_needed: readChecks('role'),
+                        machines: readChecks('machine'),
+                        suggested_skills: readChecks('skill').map((k) => {
+                            const [credential, skill] = k.split('::');
+                            return { credential, skill };
+                        }),
+                    },
+                };
+            }
+
+            function syncQtyMode() {
+                colorQty.setMode(document.querySelector('input[name="qty-mode"]:checked').value);
+            }
+
+            // Machines and skills follow every method in use (the job's plus any
+            // location's own), but only while the lab hasn't changed them from the
+            // last defaults. Same rule as defaultAssessment in server/jobPacket.js.
+            function defaultsFor() {
+                const methods = [...new Set([$('f-method').value,
+                    ...[...document.querySelectorAll('#placement-list .pl-method')].map((s) => s.value)].filter(Boolean))];
+                return {
+                    machines: [...new Set(methods.flatMap((m) => ref.defaultMachines[m] || []))],
+                    skills: [...new Set(methods.flatMap((m) => (ref.defaultSkills[m] || []).map(skillKey)))],
+                };
+            }
+            let lastDefaults = { machines: [], skills: [] };
+            function syncDefaults() {
+                const next = defaultsFor();
+                const sameSet = (a, b) => a.length === b.length && a.every((x) => b.includes(x));
+                if (sameSet(readChecks('machine'), lastDefaults.machines)) setChecks('machine', next.machines);
+                if (sameSet(readChecks('skill'), lastDefaults.skills)) setChecks('skill', next.skills);
+                lastDefaults = next;
+            }
+
+            // ---- Header, request summary, lock, issues ----
+            const colorsText = (c) => (c === 'not_sure' ? 'colors not sure' : c ? `${c} color${c === '1' ? '' : 's'}` : '');
+
+            function renderHeader() {
+                $('packet-title').textContent = view.job_number ? `Job packet ${view.job_number}` : 'New job packet';
+                $('packet-subtitle').textContent = view.job_number
+                    ? `Last saved ${new Date(view.updated_at).toLocaleString()}${view.updated_by ? ` by ${view.updated_by}` : ''}.`
+                    : 'The job number is assigned the first time you save, and never changes after that.';
+                if (view.request) {
+                    $('back-link').href = '/admin/requests/';
+                    $('back-link').innerHTML = '&larr; Job requests';
+                }
+                $('lock-banner').hidden = !view.locked;
+                if (view.locked) {
+                    $('lock-banner').textContent = `This request is ${view.request.status}, so the packet is locked. You can still download it. Reopen the request on the Job Requests page to edit.`;
+                }
+                $('packet-fields').disabled = view.locked;
+                $('save-btn').disabled = view.locked;
+                $('download-btn').disabled = !view.job_number;
+                $('download-btn').title = view.job_number ? '' : 'Save first to assign a job number';
+            }
+
+            function renderRequest() {
+                const r = view.request;
+                if (!r) return;
+                const rows = [
+                    ['Job', r.job_name],
+                    ['Requester', `${r.requester_name} <${r.email}>`],
+                    ['Building', r.building],
+                    ['Phone', r.phone],
+                    ['Process', r.category],
+                    ['Status', r.status.replace('_', ' ')],
+                    ['Needed by', r.needed_by],
+                    ['Garment', r.garment_type ? `${r.garment_color} ${r.garment_type === 'Other' ? `Other: ${r.garment_other}` : r.garment_type}` : ''],
+                    ['Blank', r.blank_ref],
+                    ['Locations', r.locations.map((l) => {
+                        const name = l.location === 'Other' ? `Other: ${l.other_text}` : l.location;
+                        const details = [ref.jerseyOptions[l.name_number], methodLabel(l.method || ''), colorsText(l.colors)]
+                            .filter((x) => x && x !== '—');
+                        return details.length ? `${name} (${details.join(', ')})` : name;
+                    }).join('\n')],
+                    ['Team roster', r.roster.length ? `${r.roster_name}: ${r.roster.length} players, ${r.jersey_style} jerseys` : ''],
+                    ['Finished size', r.item_size],
+                    ['Surface', r.surface_type === 'Other' ? `Other: ${r.surface_other}` : r.surface_type],
+                    ['Quantity', r.colors.length
+                        ? `${r.colors.map((c) => (c.sizes.length
+                            ? `${c.color}: ${c.sizes.map((s) => `${s.size} ${s.qty}`).join(', ')} (${c.qty})`
+                            : `${c.color}: ${c.qty}`)).join('\n')}\n${r.quantity} total`
+                        : r.quantity],
+                    ['Description', r.description],
+                    ['Artwork', r.files.map((f) => f.file_name).join(', ')],
+                ].filter(([, v]) => v);
+                $('request-summary').hidden = false;
+                $('request-summary').innerHTML = `
+                    <h2>From request #${r.id}</h2>
+                    <dl>${rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')}</dl>
+                    ${r.files.length ? '<p class="field-note" style="margin:-8px 0 16px;">Download the artwork from the Job Requests page and put it in the Drive folder.</p>' : ''}
+                `;
+                // Older requests have a free-text quantity the lab has to re-enter.
+                if (!r.qty_mode && r.quantity && !/^\d+$/.test(r.quantity.trim())) {
+                    $('qty-note').textContent = `The requester wrote "${r.quantity}". Enter the actual quantity.`;
+                }
+            }
+
+            function renderIssues(errors, warnings) {
+                const box = $('packet-issues');
+                box.hidden = false;
+                box.className = `packet-issues ${errors.length ? 'has-errors' : warnings.length ? 'has-warnings' : 'is-ok'}`;
+                const list = (items) => `<ul>${items.map((i) => `<li>${esc(i)}</li>`).join('')}</ul>`;
+                box.innerHTML = !errors.length && !warnings.length
+                    ? 'Ready to download. ClassicalKenKen should import this with no warnings.'
+                    : (errors.length ? `<div class="issue-errors"><strong>ClassicalKenKen would refuse this packet:</strong>${list(errors)}</div>` : '') +
+                      (warnings.length ? `<div class="issue-warnings"${errors.length ? ' style="margin-top:10px;"' : ''}><strong>It would import with warnings:</strong>${list(warnings)}</div>` : '');
+            }
+
+            function setSaveState(text) {
+                $('save-state').textContent = text;
+            }
+
+            // ---- Live checks ----
+            let checkTimer;
+            function changed() {
+                dirty = true;
+                setSaveState('Unsaved changes');
+                clearTimeout(checkTimer);
+                checkTimer = setTimeout(async () => {
+                    const r = await authFetch('/api/packets/check', {
+                        method: 'POST',
+                        body: JSON.stringify({ id: view.id, data: collect() }),
+                    });
+                    if (r.ok) {
+                        const { errors, warnings } = await r.json();
+                        renderIssues(errors, warnings);
+                    }
+                }, 350);
+            }
+
+            $('packet-fields').addEventListener('input', changed);
+            $('packet-fields').addEventListener('change', (e) => {
+                if (e.target.name === 'qty-mode') syncQtyMode();
+                if (e.target.id === 'f-garment') $('f-garment-other').hidden = $('f-garment').value !== 'Other';
+                if (e.target.id === 'f-surface') $('f-surface-other').hidden = $('f-surface').value !== 'Other';
+                if (e.target.id === 'f-method' || e.target.classList.contains('pl-method')) {
+                    refreshColorPicks();
+                    syncDefaults();
+                }
+                changed();
+            });
+            $('add-placement').addEventListener('click', () => { addPlacementRow(); changed(); });
+            window.addEventListener('beforeunload', (e) => {
+                if (dirty) { e.preventDefault(); e.returnValue = ''; }
+            });
+
+            // ---- Save / download ----
+            async function save() {
+                $('save-btn').disabled = true;
+                setSaveState('Saving…');
+                try {
+                    const r = view.id
+                        ? await authFetch(`/api/packets/${view.id}`, { method: 'PUT', body: JSON.stringify({ data: collect() }) })
+                        : await authFetch('/api/packets', { method: 'POST', body: JSON.stringify({ request_id: view.request_id, data: collect() }) });
+                    const body = await r.json().catch(() => ({}));
+                    if (!r.ok) {
+                        setSaveState(body.error || 'Could not save.');
+                        return false;
+                    }
+                    view = body;
+                    dirty = false;
+                    clearTimeout(checkTimer);
+                    if (!params.get('id')) history.replaceState(null, '', `?id=${view.id}`);
+                    renderHeader();
+                    renderIssues(view.errors, view.warnings);
+                    setSaveState(`Saved ${view.job_number}`);
+                    return true;
+                } finally {
+                    $('save-btn').disabled = view.locked;
+                }
+            }
+
+            $('save-btn').addEventListener('click', save);
+
+            $('download-btn').addEventListener('click', async () => {
+                if (dirty && !view.locked && !(await save())) return;
+                const r = await authFetch(`/api/packets/${view.id}/download`);
+                if (!r.ok) {
+                    const body = await r.json().catch(() => ({}));
+                    if (body.errors) renderIssues(body.errors, body.warnings || []);
+                    setSaveState(body.error || 'Could not download the packet.');
+                    return;
+                }
+                const blob = await r.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${view.job_number}.json`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                URL.revokeObjectURL(url);
+                setSaveState(`Downloaded ${view.job_number}.json`);
+            });
+
+            // ---- Initial render ----
+            fill(view.data);
+            lastDefaults = defaultsFor();
+            refreshColorPicks();
+            renderHeader();
+            renderRequest();
+            renderIssues(view.errors, view.warnings);
+            if (!view.id) setSaveState('Not saved yet');
+        }, { adminOnly: true });
+    </script>
+    <script src="/scripts/admin-shell.js"></script>
+</body>
+
+</html>

@@ -30,6 +30,7 @@ app.use('/api/orders',        require('./routes/orders'));
 app.use('/api/transactions',  require('./routes/transactions'));
 app.use('/api/reports',       require('./routes/reports'));
 app.use('/api/requests',      require('./routes/requests'));
+app.use('/api/packets',       require('./routes/packets'));
 app.use('/api/jerseys',       require('./routes/jerseys'));
 app.use('/api/schedule',      require('./routes/schedule'));
 app.use('/api/staff',         require('./routes/staff'));

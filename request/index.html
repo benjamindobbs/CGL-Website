@@ -83,9 +83,64 @@
                 <small id="category-desc" class="field-note" style="display:none;"></small>
             </div>
 
+            <!-- Apparel decoration (Screen Printing, Embroidery, DTF) only. -->
+            <div id="apparel-fields" hidden>
+                <div class="form-group">
+                    <label class="checkbox-item roster-toggle"><input type="checkbox" id="team-roster"> Is This For a Team/Roster?</label>
+                    <div id="roster-box" class="roster-box" hidden>
+                        <p id="roster-summary" class="field-note">Import a roster you built with the <a href="/jerseys/" target="_blank" rel="noopener">team jersey roster tool</a>. It fills in the colors and sizes, and lets you put each player's name or number on a design location.</p>
+                        <div class="roster-actions">
+                            <button type="button" id="roster-import-btn" class="secondary-btn">Import roster</button>
+                            <button type="button" id="roster-remove-btn" class="link-btn" hidden>Remove roster</button>
+                        </div>
+                        <div id="roster-picker" class="roster-picker" hidden></div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Design Location(s)</label>
+                    <div id="location-list" class="decor-locations"></div>
+                    <small id="location-note" class="field-note"></small>
+                </div>
+
+                <div class="form-group">
+                    <label for="garment-type">Garment Type</label>
+                    <select id="garment-type">
+                        <option value="" disabled selected>Select a garment</option>
+                    </select>
+                    <input type="text" id="garment-other" class="decor-other" placeholder="Please specify" hidden>
+                </div>
+
+                <div class="form-group">
+                    <label for="blank-ref">Blank (model name or link), optional</label>
+                    <input type="text" id="blank-ref" placeholder="e.g. Gildan 5000, or a supplier product link">
+                </div>
+            </div>
+
+            <!-- Banner and Stickers, Decals & Signs only. -->
+            <div id="printcut-fields" hidden>
+                <div class="form-group">
+                    <label for="item-size">Finished Size</label>
+                    <input type="text" id="item-size" placeholder="e.g. 3 ft x 6 ft, or 4 in circle">
+                </div>
+
+                <div class="form-group" id="surface-group" hidden>
+                    <label for="surface-type">Surface Type</label>
+                    <select id="surface-type">
+                        <option value="" disabled selected>Where will it go?</option>
+                    </select>
+                    <input type="text" id="surface-other" class="decor-other" placeholder="Please specify" hidden>
+                </div>
+            </div>
+
             <div class="form-group">
-                <label for="quantity">Quantity</label>
+                <label for="quantity" id="quantity-label">Quantity</label>
+                <div id="qty-mode" class="qty-mode" hidden>
+                    <label class="checkbox-item"><input type="radio" name="qty-mode" value="total" checked> Total</label>
+                    <label class="checkbox-item"><input type="radio" name="qty-mode" value="sizes"> Qty by Size</label>
+                </div>
                 <input type="text" id="quantity" placeholder="e.g. 120, or 50–75">
+                <div id="color-qty" hidden></div>
             </div>
 
             <div class="form-group">
@@ -114,10 +169,25 @@
         </div>
     </main>
 
+    <!-- Shown the first time Name/Number is ticked on Full Chest or Full Back
+         when the job isn't DTF (scripts/request-form.js). -->
+    <dialog id="dtf-dialog" class="form-dialog" aria-labelledby="dtf-dialog-title">
+        <form method="dialog">
+            <h3 id="dtf-dialog-title">Names/Numbers are only available as DTF transfers</h3>
+            <p>Names and numbers on the <strong id="dtf-dialog-location"></strong> will be printed as DTF transfers, even though the rest of your job is <strong id="dtf-dialog-process"></strong>.</p>
+            <label class="checkbox-item"><input type="checkbox" id="dtf-ack"> I acknowledge</label>
+            <div class="dialog-actions">
+                <button type="submit" value="cancel" class="secondary-btn">Cancel</button>
+                <button type="submit" value="ok" id="dtf-ok" class="submit-btn" disabled>Continue</button>
+            </div>
+        </form>
+    </dialog>
+
     <script src="https://accounts.google.com/gsi/client" async defer onload="gisLoaded()"></script>
     <script src="/scripts/auth.js"></script>
     <script src="/scripts/district-guard.js"></script>
     <script src="/scripts/info-tip.js"></script>
+    <script src="/scripts/color-qty.js"></script>
     <script src="/scripts/request-form.js"></script>
     <script src="/scripts/nav-auth.js"></script>
 </body>

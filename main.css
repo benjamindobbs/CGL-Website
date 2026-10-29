@@ -2779,3 +2779,404 @@ html:has(.hoco-page) {
         transform: none;
     }
 }
+
+/* ---- Job request: apparel decoration fields (request/, scripts/request-form.js) */
+.decor-locations {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.decor-location {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+}
+
+/* .form-group label would otherwise make these display: block. */
+.decor-location .checkbox-item {
+    display: flex;
+    flex: 0 0 160px;
+    box-sizing: border-box;
+    margin: 0;
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 0.95rem;
+}
+
+.form-group .decor-location select,
+.form-group .decor-location input[type="text"] {
+    flex: 1 1 180px;
+    width: auto;
+    padding: 9px 14px;
+}
+
+.form-group .decor-other {
+    margin-top: 10px;
+}
+
+.qty-mode {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.qty-mode .checkbox-item {
+    display: flex;
+    margin: 0;
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 0.95rem;
+}
+
+.size-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+    gap: 10px;
+}
+
+.form-group .size-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    margin: 0;
+    font-size: 0.8rem;
+}
+
+.form-group .size-cell input {
+    padding: 8px 6px;
+    text-align: center;
+}
+
+/* Team roster (request form): Use for Name/Number, DTF/Embroidery pick. */
+.decor-location .decor-nn,
+.decor-method .checkbox-item {
+    flex: none;
+    padding: 6px 10px;
+    font-size: 0.85rem;
+}
+
+.decor-method {
+    display: flex;
+    gap: 8px;
+}
+
+.decor-dtf-note {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #1B75BB;
+}
+
+.roster-toggle {
+    display: inline-flex;
+    margin: 0;
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 0.95rem;
+}
+
+.roster-box {
+    margin-top: 12px;
+    padding: 14px;
+    border: 2px solid #EEE;
+    border-radius: 12px;
+}
+
+.roster-box .field-note {
+    margin-top: 0;
+}
+
+.roster-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 14px;
+    margin-top: 10px;
+}
+
+.roster-actions .secondary-btn {
+    width: auto;
+    margin: 0;
+    padding: 10px 18px;
+}
+
+.roster-picker {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.roster-option {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    text-align: left;
+    padding: 10px 14px;
+    background: white;
+    border: 2px solid #EEE;
+    border-radius: 10px;
+    font: inherit;
+    cursor: pointer;
+}
+
+.roster-option:hover {
+    border-color: #1B75BB;
+}
+
+.roster-option small {
+    color: #777;
+}
+
+.form-dialog {
+    border: none;
+    border-radius: 20px;
+    padding: 24px;
+    width: min(440px, calc(100% - 32px));
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+}
+
+.form-dialog::backdrop {
+    background: rgba(0, 0, 0, 0.35);
+}
+
+.form-dialog h3 {
+    margin: 0 0 10px;
+    color: #1B75BB;
+}
+
+.form-dialog p {
+    margin: 0 0 16px;
+    color: #555;
+}
+
+.form-dialog .checkbox-item {
+    display: inline-flex;
+}
+
+.dialog-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.dialog-actions .submit-btn,
+.dialog-actions .secondary-btn {
+    width: auto;
+    margin: 0;
+    padding: 10px 20px;
+    font-size: 0.95rem;
+}
+
+.dialog-actions .submit-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* The display rules above would otherwise beat the hidden attribute. */
+.qty-mode[hidden],
+.size-grid[hidden],
+.form-group .size-cell[hidden],
+.decor-location .checkbox-item[hidden],
+.decor-method[hidden],
+.roster-picker[hidden] {
+    display: none;
+}
+
+/* One box per garment color (scripts/color-qty.js). */
+.color-groups {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.color-group {
+    border: 2px solid #EEE;
+    border-radius: 12px;
+    padding: 12px;
+}
+
+.color-group-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+}
+
+.form-group .color-group-head input,
+.form-group .color-group-head select {
+    flex: 1 1 160px;
+    width: auto;
+    padding: 10px 14px;
+}
+
+.color-group-head .remove-btn {
+    flex: none;
+}
+
+.color-group .size-grid {
+    margin-top: 12px;
+}
+
+/* ---- Job packet builder (admin/packets/) ----------------------------------- */
+.packet-section {
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+    padding: 22px 24px 6px;
+    margin-top: 24px;
+}
+
+.packet-section h2 {
+    margin: 0 0 16px;
+    font-size: 1.05rem;
+    color: #1B75BB;
+}
+
+.packet-section h3 {
+    margin: 4px 0 10px;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #444;
+}
+
+.packet-section .form-group {
+    margin-bottom: 16px;
+}
+
+.packet-section .form-group select,
+.packet-section .form-group input,
+.packet-section .form-group textarea {
+    padding: 10px 14px;
+}
+
+.packet-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 0 20px;
+}
+
+.packet-checks {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.packet-checks .checkbox-item {
+    margin: 0;
+    font-weight: 500;
+    font-size: 0.85rem;
+    text-transform: none;
+    letter-spacing: 0;
+}
+
+.placement-row {
+    display: grid;
+    grid-template-columns: 1.4fr 1.3fr 0.8fr 1fr 1fr 1.1fr auto;
+    gap: 8px;
+    align-items: start;
+    margin-bottom: 10px;
+}
+
+.placement-row .remove-btn {
+    margin-top: 10px;
+}
+
+.placement-head {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #888;
+    margin-bottom: 4px;
+}
+
+.packet-request dl {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 6px 16px;
+    margin: 0 0 16px;
+    font-size: 0.9rem;
+}
+
+.packet-request dt {
+    font-weight: 700;
+    color: #666;
+}
+
+.packet-request dd {
+    margin: 0;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.packet-banner,
+.packet-issues {
+    border-radius: 12px;
+    padding: 12px 16px;
+    margin-top: 20px;
+    font-size: 0.9rem;
+}
+
+.packet-banner {
+    background: rgba(230, 168, 23, 0.15);
+    color: #8a6100;
+    font-weight: 600;
+}
+
+.packet-issues ul {
+    margin: 6px 0 0;
+    padding-left: 20px;
+}
+
+.packet-issues.is-ok { background: rgba(39, 174, 96, 0.12); color: #1e8449; }
+.packet-issues .issue-errors { color: #c0392b; }
+.packet-issues .issue-warnings { color: #8a6100; }
+.packet-issues.has-errors { background: #fdf2f2; }
+.packet-issues.has-warnings { background: rgba(230, 168, 23, 0.1); }
+
+.packet-actions {
+    position: sticky;
+    bottom: 12px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    margin-top: 24px;
+    padding: 12px 16px;
+    background: rgba(255, 255, 255, 0.96);
+    border-radius: 14px;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.12);
+}
+
+.packet-actions .submit-btn,
+.packet-actions .secondary-btn {
+    width: auto;
+    margin: 0;
+    padding: 10px 20px;
+}
+
+.packet-actions .packet-save-state {
+    font-size: 0.85rem;
+    color: #666;
+}
+
+@media (max-width: 768px) {
+    .placement-row {
+        grid-template-columns: 1fr 1fr;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #eee;
+    }
+
+    .placement-head {
+        display: none;
+    }
+}
