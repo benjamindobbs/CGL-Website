@@ -2,15 +2,18 @@ const { Router } = require('express');
 const { db, upsertUser, getStaffRole } = require('../db');
 const { randomUUID } = require('crypto');
 const { resolveIdentity, isDistrictUser } = require('../auth');
+const { isCoreAccount } = require('../seed');
 
 const router = Router();
 
 // Role flags sent to the browser with every session. `role` is the staff role
 // ('admin' | 'student') or null; isStaff stays for pages that only care about
 // "any staff". The server re-checks on every staff API call regardless.
+// isCore marks the core lab accounts (server/seed.js), which alone get the
+// Special Event controls on the Storefront Sale page.
 function roleFlags(email) {
     const role = getStaffRole(email);
-    return { isStaff: role !== null, role, isDistrict: isDistrictUser(email) };
+    return { isStaff: role !== null, role, isDistrict: isDistrictUser(email), isCore: role !== null && isCoreAccount(email) };
 }
 
 router.post('/login', async (req, res) => {

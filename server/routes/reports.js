@@ -16,6 +16,11 @@ const UNFILED = 'Unfiled';
 // "Income" here is NET of CT sales tax: the catalogue price is tax-inclusive,
 // so orderCents / counterCents have the tax stripped out. The tax that was
 // collected is reported separately as taxCents (and totals.salesTaxCents).
+//
+// Counter sales rung up in Special Event mode (stock_events.special_event set)
+// are pulled out of their item's category into a top-level row named for the
+// event (isSpecialEvent: true), whose breakdown rows are labelled
+// "<category> · <sub-category>" to show what sold at the event.
 router.get('/income-by-category', (_req, res) => {
     const orderRows = db.prepare(`
         SELECT i.category AS category, s.name AS subcategory,
@@ -30,7 +35,7 @@ router.get('/income-by-category', (_req, res) => {
     `).all();
 
     const counterRows = db.prepare(`
-        SELECT i.category AS category, s.name AS subcategory,
+        SELECT i.category AS category, s.name AS subcategory, se.special_event AS specialEvent,
                SUM(-se.delta * i.price_cents) AS grossCents,
                SUM(CASE
                    WHEN LOWER(TRIM(COALESCE(s.name, ''))) IN (${TAX_EXEMPT_SQL_LIST}) THEN 0
@@ -41,13 +46,15 @@ router.get('/income-by-category', (_req, res) => {
         JOIN items i ON i.uuid = se.item_uuid
         LEFT JOIN subcategories s ON s.id = i.subcategory_id
         WHERE se.reason = 'storefront_sale'
-        GROUP BY i.category, s.name
+        GROUP BY i.category, s.name, se.special_event
     `).all();
 
     const byCategory = new Map();
-    const bucket = (name) => {
+    const bucket = (name, isSpecialEvent = false) => {
         if (!byCategory.has(name)) {
-            byCategory.set(name, { category: name, orderCents: 0, counterCents: 0, taxCents: 0, subs: new Map() });
+            byCategory.set(name, {
+                category: name, isSpecialEvent, orderCents: 0, counterCents: 0, taxCents: 0, subs: new Map(),
+            });
         }
         return byCategory.get(name);
     };
@@ -64,6 +71,8 @@ router.get('/income-by-category', (_req, res) => {
     for (const sub of db.prepare('SELECT name, category FROM subcategories').all()) {
         subBucket(sub.category, sub.name);
     }
+    // Enabled event types always show; a disabled one only once it has sales.
+    for (const { name } of db.prepare('SELECT name FROM special_events WHERE enabled = 1').all()) bucket(name, true);
 
     for (const row of orderRows) {
         const net = (row.grossCents || 0) - (row.taxCents || 0);
@@ -74,10 +83,14 @@ router.get('/income-by-category', (_req, res) => {
     }
     for (const row of counterRows) {
         const net = (row.grossCents || 0) - (row.taxCents || 0);
-        bucket(row.category).counterCents += net;
-        bucket(row.category).taxCents += row.taxCents || 0;
-        subBucket(row.category, row.subcategory).counterCents += net;
-        subBucket(row.category, row.subcategory).taxCents += row.taxCents || 0;
+        const top = row.specialEvent ? bucket(row.specialEvent, true) : bucket(row.category);
+        const sub = row.specialEvent
+            ? subBucket(row.specialEvent, `${row.category} · ${row.subcategory || UNFILED}`)
+            : subBucket(row.category, row.subcategory);
+        top.counterCents += net;
+        top.taxCents += row.taxCents || 0;
+        sub.counterCents += net;
+        sub.taxCents += row.taxCents || 0;
     }
 
     const withTotal = (b) => ({ ...b, totalCents: b.orderCents + b.counterCents });
@@ -92,7 +105,10 @@ router.get('/income-by-category', (_req, res) => {
             const { subs, ...rest } = c;
             return { ...withTotal(rest), subcategories };
         })
-        .sort((a, b) => b.totalCents - a.totalCents || a.category.localeCompare(b.category));
+        // Item categories first, then special events, each by total.
+        .sort((a, b) => a.isSpecialEvent - b.isSpecialEvent
+            || b.totalCents - a.totalCents
+            || a.category.localeCompare(b.category));
 
     const totals = categories.reduce(
         (acc, c) => ({

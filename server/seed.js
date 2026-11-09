@@ -131,6 +131,14 @@ const INITIAL_STAFF = [
     'leonr001@hartfordschools.org',
 ];
 
+// True for one of the core lab accounts above (case-insensitive). Core-only
+// powers: granting/removing admin (routes/staff.js) and everything Special
+// Event (routes/special-events.js, storefront sales booked to an event).
+const CORE_STAFF = new Set(INITIAL_STAFF.map((e) => e.toLowerCase()));
+function isCoreAccount(email) {
+    return CORE_STAFF.has(String(email || '').trim().toLowerCase());
+}
+
 function seedStaff() {
     const upsert = db.prepare(`
         INSERT INTO staff_whitelist(email, role) VALUES(?, 'admin')
@@ -196,4 +204,4 @@ function seedColors() {
     `).run(now);
 }
 
-module.exports = { seedUniforms, seedTraditionLine, seedHocoTicket, seedStaff, seedSubcategories, seedColors, INITIAL_STAFF };
+module.exports = { seedUniforms, seedTraditionLine, seedHocoTicket, seedStaff, seedSubcategories, seedColors, INITIAL_STAFF, isCoreAccount };

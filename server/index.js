@@ -24,6 +24,7 @@ app.use(express.json());
 app.use('/api/auth',          require('./routes/auth'));
 app.use('/api/items',         require('./routes/items'));
 app.use('/api/subcategories', require('./routes/subcategories'));
+app.use('/api/special-events', require('./routes/special-events'));
 app.use('/api/colors',        require('./routes/colors'));
 app.use('/api/inventory',     require('./routes/inventory'));
 app.use('/api/orders',        require('./routes/orders'));

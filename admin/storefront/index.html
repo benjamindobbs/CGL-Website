@@ -62,6 +62,36 @@
             <p>Scan (or type) an item's UUID, set the quantity, and add it to the sale. Add as many
                 items as needed, then pick a payment method and location and complete the sale.</p>
 
+            <!-- Core lab accounts only; revealed in script when session.isCore. -->
+            <div class="special-event-panel" id="special-event-panel" hidden>
+                <label class="switch">
+                    <input type="checkbox" id="special-event-toggle" role="switch">
+                    <span class="switch-track" aria-hidden="true"></span>
+                    Special Event
+                </label>
+
+                <div class="form-group" id="special-event-select-group" hidden>
+                    <label for="special-event">Event</label>
+                    <select id="special-event"></select>
+                </div>
+
+                <p class="special-event-banner" id="special-event-banner" hidden>
+                    <span class="material-symbols-outlined">theater_comedy</span>
+                    <span>Every sale is booked to <strong id="special-event-banner-name"></strong>,
+                        not the item's usual category. Turn this off when the event is over.</span>
+                </p>
+
+                <details class="special-event-manage">
+                    <summary>Manage event types</summary>
+                    <ul class="special-event-list" id="special-event-list"></ul>
+                    <div class="input-with-action">
+                        <input type="text" id="new-event-name" maxlength="40" placeholder="New event type, e.g. Band Concert">
+                        <button type="button" id="add-event-btn" class="secondary-btn">Add</button>
+                    </div>
+                    <p id="manage-result" style="display:none;font-weight:600;"></p>
+                </details>
+            </div>
+
             <div class="form-group">
                 <label for="uuid">Item UUID</label>
                 <div class="input-with-action">
@@ -119,7 +149,7 @@
 
             <button type="button" id="sale-btn" class="submit-btn">
                 <span class="material-symbols-outlined">point_of_sale</span>
-                Complete Sale
+                <span id="sale-btn-label">Complete Sale</span>
             </button>
         </div>
     </main>
@@ -133,7 +163,7 @@
     <script src="/scripts/vendor/jsQR.min.js"></script>
     <script src="/scripts/qr-scan.js"></script>
     <script>
-        requireStaffSession(() => {
+        requireStaffSession((session) => {
             const uuidInput = document.getElementById('uuid');
             const qtyInput = document.getElementById('qty');
             const scanResultEl = document.getElementById('scan-result');
@@ -149,6 +179,154 @@
                 { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]
             ));
             const money = (cents) => `$${(cents / 100).toFixed(2)}`;
+
+            // ---- Special Event mode ------------------------------------
+            // While on, every sale is booked to the chosen event type instead
+            // of each item's category. The choice is remembered on this
+            // device (localStorage) until someone turns it off, so a register
+            // at an event stays in event mode across sales and reloads.
+            // Core lab accounts only: for anyone else the panel stays hidden
+            // and every sale is a normal one (the server enforces this too).
+            const isCore = !!(session && session.isCore);
+            const EVENT_STORAGE_KEY = 'cgl.storefront.specialEvent';
+            const eventToggle = document.getElementById('special-event-toggle');
+            const eventSelect = document.getElementById('special-event');
+            const eventSelectGroup = document.getElementById('special-event-select-group');
+            const eventPanel = document.getElementById('special-event-panel');
+            const eventBanner = document.getElementById('special-event-banner');
+            const eventBannerName = document.getElementById('special-event-banner-name');
+            const eventListEl = document.getElementById('special-event-list');
+            const newEventInput = document.getElementById('new-event-name');
+            const manageResultEl = document.getElementById('manage-result');
+            const saleBtn = document.getElementById('sale-btn');
+            const saleBtnLabel = document.getElementById('sale-btn-label');
+
+            let specialEvents = [];
+
+            function readStoredEvent() {
+                try { return localStorage.getItem(EVENT_STORAGE_KEY) || ''; } catch { return ''; }
+            }
+            function storeEvent(name) {
+                try {
+                    if (name) localStorage.setItem(EVENT_STORAGE_KEY, name);
+                    else localStorage.removeItem(EVENT_STORAGE_KEY);
+                } catch { /* storage blocked: mode just won't survive a reload */ }
+            }
+
+            // The event this sale will be booked to, or '' for a normal sale.
+            const currentSpecialEvent = () => (isCore && eventToggle.checked ? eventSelect.value : '');
+            const enabledEvents = () => specialEvents.filter((e) => e.enabled);
+
+            function applyEventMode() {
+                const name = currentSpecialEvent();
+                eventSelectGroup.hidden = !eventToggle.checked;
+                eventBanner.hidden = !name;
+                eventBannerName.innerText = name;
+                eventPanel.classList.toggle('is-active', !!name);
+                saleBtn.classList.toggle('is-special-event', !!name);
+                saleBtnLabel.innerText = name ? `Complete ${name} Sale` : 'Complete Sale';
+                eventToggle.disabled = enabledEvents().length === 0 && !eventToggle.checked;
+                storeEvent(name);
+            }
+
+            function showManageResult(message, ok) {
+                manageResultEl.style.display = message ? '' : 'none';
+                manageResultEl.style.color = ok ? '#27ae60' : '#c0392b';
+                manageResultEl.innerText = message;
+            }
+
+            // Rebuilds the picker (enabled types only) and the manage list
+            // (all types) from `list`, keeping the current selection (or
+            // `prefer`) when it's still enabled. If the active event was
+            // disabled, Special Event mode turns off.
+            function renderSpecialEvents(list, prefer) {
+                specialEvents = list;
+                const want = (prefer || eventSelect.value || '').toLowerCase();
+                const enabled = enabledEvents();
+                eventSelect.innerHTML = enabled.map((e) =>
+                    `<option value="${esc(e.name)}">${esc(e.name)}</option>`).join('');
+                const match = enabled.find((e) => e.name.toLowerCase() === want);
+                if (match) eventSelect.value = match.name;
+                else if (want && eventToggle.checked) eventToggle.checked = false;
+
+                eventListEl.innerHTML = list.length ? list.map((e) => `
+                    <li class="${e.enabled ? '' : 'is-disabled'}">
+                        <span>${esc(e.name)} <small>${e.enabled ? '' : 'Disabled &middot; '}${e.sale_count} sale line${e.sale_count === 1 ? '' : 's'}</small></span>
+                        <label class="switch switch-small">
+                            <input type="checkbox" role="switch" data-id="${e.id}" data-name="${esc(e.name)}"
+                                ${e.enabled ? 'checked' : ''} aria-label="${esc(e.name)} enabled">
+                            <span class="switch-track" aria-hidden="true"></span>
+                        </label>
+                    </li>`).join('') : '<li><small>No event types yet. Add one below.</small></li>';
+                applyEventMode();
+            }
+
+            async function loadSpecialEvents(prefer) {
+                try {
+                    const res = await authFetch('/api/special-events');
+                    if (!res.ok) throw new Error('request failed');
+                    renderSpecialEvents(await res.json(), prefer);
+                } catch (err) {
+                    console.error('Failed to load special events:', err);
+                    showManageResult('Could not load event types. Please refresh.', false);
+                }
+            }
+
+            eventToggle.addEventListener('change', applyEventMode);
+            eventSelect.addEventListener('change', applyEventMode);
+
+            async function addSpecialEvent() {
+                const name = newEventInput.value.trim();
+                if (!name) { newEventInput.focus(); return; }
+                const res = await authFetch('/api/special-events', {
+                    method: 'POST',
+                    body: JSON.stringify({ name }),
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) { showManageResult(data.error || 'Could not add event type.', false); return; }
+                newEventInput.value = '';
+                showManageResult(`Added "${name}".`, true);
+                renderSpecialEvents(data);
+            }
+            document.getElementById('add-event-btn').addEventListener('click', addSpecialEvent);
+            newEventInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') { e.preventDefault(); addSpecialEvent(); }
+            });
+
+            // Enable / disable an event type. Disabled types leave the picker;
+            // their past sales stay in reports and the transaction log.
+            eventListEl.addEventListener('change', async (e) => {
+                const input = e.target.closest('input[data-id]');
+                if (!input) return;
+                const { name } = input.dataset;
+                const enabled = input.checked;
+                input.disabled = true;
+                const res = await authFetch(`/api/special-events/${encodeURIComponent(input.dataset.id)}`, {
+                    method: 'PATCH',
+                    body: JSON.stringify({ enabled }),
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) {
+                    input.checked = !enabled;
+                    input.disabled = false;
+                    showManageResult(data.error || 'Could not update event type.', false);
+                    return;
+                }
+                showManageResult(`${enabled ? 'Enabled' : 'Disabled'} "${name}".`, true);
+                renderSpecialEvents(data);
+            });
+
+            if (isCore) {
+                eventPanel.hidden = false;
+                // Restore the mode remembered on this device.
+                const storedEvent = readStoredEvent();
+                if (storedEvent) eventToggle.checked = true;
+                loadSpecialEvents(storedEvent);
+            } else {
+                // A non-core account on a device a core account left in event
+                // mode: clear it so it can't carry over.
+                storeEvent('');
+            }
 
             function showScanError(message) {
                 scanResultEl.style.display = '';
@@ -288,12 +466,20 @@
                     return;
                 }
 
+                if (eventToggle.checked && !eventSelect.value) {
+                    resultEl.style.display = '';
+                    resultEl.style.color = '#c0392b';
+                    resultEl.innerText = 'Pick which event this sale is for, or turn off Special Event.';
+                    return;
+                }
+
                 const res = await authFetch('/api/inventory/storefront-sale', {
                     method: 'POST',
                     body: JSON.stringify({
                         lines: saleLines.map((l) => ({ uuid: l.uuid, qty: l.qty })),
                         paymentMethod: paymentMethodInput.value,
                         location: locationInput.value,
+                        specialEvent: currentSpecialEvent(),
                     }),
                 });
                 const data = await res.json();
@@ -301,7 +487,8 @@
                 resultEl.style.display = '';
                 if (res.ok) {
                     resultEl.style.color = '#27ae60';
-                    resultEl.innerText = `Sale complete: ${data.items.length} item${data.items.length === 1 ? '' : 's'}, ${money(data.totalCents)} total.`;
+                    const eventNote = data.specialEvent ? ` (booked to ${data.specialEvent})` : '';
+                    resultEl.innerText = `Sale complete${eventNote}: ${data.items.length} item${data.items.length === 1 ? '' : 's'}, ${money(data.totalCents)} total.`;
                     saleLines = [];
                     renderSale();
                     paymentMethodInput.checked = false;
@@ -309,6 +496,8 @@
                 } else {
                     resultEl.style.color = '#c0392b';
                     resultEl.innerText = data.error || 'Sale failed.';
+                    // The event type may have been deleted from another device.
+                    if (currentSpecialEvent()) loadSpecialEvents();
                 }
                 uuidInput.focus();
             }

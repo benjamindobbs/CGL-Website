@@ -232,6 +232,25 @@
                 el.addEventListener('change', load);
             });
 
+            // The three category options are in the HTML; append special event
+            // accounts (e.g. "Theatre") from the server. Best-effort: on
+            // failure the filter just keeps the categories.
+            async function loadAccounts() {
+                try {
+                    const res = await authFetch('/api/transactions/accounts');
+                    if (!res.ok) return;
+                    const select = $('account');
+                    const have = new Set([...select.options].map((o) => o.value));
+                    for (const name of await res.json()) {
+                        if (have.has(name)) continue;
+                        select.add(new Option(name, name));
+                    }
+                } catch (err) {
+                    console.error('Failed to load accounts:', err);
+                }
+            }
+
+            loadAccounts();
             load();
         }, { adminOnly: true });
     </script>

@@ -1,6 +1,7 @@
 const { Router } = require('express');
-const { db, applyStockDelta, recordTransaction, splitTaxInclusive, isSubcategoryTaxExempt, ITEM_SELECT } = require('../db');
+const { db, applyStockDelta, recordTransaction, splitTaxInclusive, isSubcategoryTaxExempt, ITEM_SELECT, findSpecialEvent } = require('../db');
 const { requireAdmin } = require('../staffAuth');
+const { isCoreAccount } = require('../seed');
 
 function variantLabel(item) {
     const v = [item.variant_color, item.variant_size].filter(Boolean).join(' ');
@@ -31,8 +32,25 @@ router.post('/restock', (req, res) => {
 // multi-item purchase is one transaction total, not one per scan. Every line
 // is validated before anything is applied, so a bad line can't leave a
 // partially-rung sale.
+//
+// specialEvent (optional): the name of a special event type (e.g. "Theatre").
+// When set, every line is booked to that event instead of the item's category
+// (ledger account + stock_events.special_event), so the income report and
+// register reconciliation show the event as its own line. Stock and CT tax
+// are handled exactly as for a normal sale. Core lab accounts only, and the
+// type must be enabled.
 router.post('/storefront-sale', (req, res) => {
     const { lines, paymentMethod, location } = req.body;
+    let specialEvent = '';
+    if (req.body.specialEvent) {
+        if (!isCoreAccount(req.userEmail)) {
+            return res.status(403).json({ error: 'Only the core lab accounts can ring up Special Event sales' });
+        }
+        const event = findSpecialEvent(req.body.specialEvent);
+        if (!event) return res.status(400).json({ error: `Unknown special event "${req.body.specialEvent}"` });
+        if (!event.enabled) return res.status(400).json({ error: `"${event.name}" is disabled` });
+        specialEvent = event.name;
+    }
     if (!Array.isArray(lines) || lines.length === 0) {
         return res.status(400).json({ error: 'Sale must have at least one item' });
     }
@@ -60,7 +78,7 @@ router.post('/storefront-sale', (req, res) => {
     let totalCents = 0;
     for (const { item, quantity } of resolved) {
         const { stockEventId } = applyStockDelta({
-            itemUuid: item.uuid, delta: -quantity, reason: 'storefront_sale', actorUserKey: req.userKey,
+            itemUuid: item.uuid, delta: -quantity, reason: 'storefront_sale', actorUserKey: req.userKey, specialEvent,
         });
 
         // Financial ledger entry. Amount is snapshotted at the current price so
@@ -74,7 +92,7 @@ router.post('/storefront-sale', (req, res) => {
             vendor: 'Storefront',
             amountCents: grossCents,
             taxCents,
-            account: item.category,
+            account: specialEvent || item.category,
             notes: `${item.name}${variantLabel(item)} x${quantity}`,
             source: 'storefront_sale',
             paymentMethod,
@@ -87,7 +105,7 @@ router.post('/storefront-sale', (req, res) => {
         soldItems.push(findItem(item.uuid));
     }
 
-    res.json({ items: soldItems, totalCents });
+    res.json({ items: soldItems, totalCents, specialEvent });
 });
 
 module.exports = router;

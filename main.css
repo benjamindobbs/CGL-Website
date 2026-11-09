@@ -3180,3 +3180,182 @@ html:has(.hoco-page) {
         display: none;
     }
 }
+
+
+/* ---- Storefront Sale: Special Event mode (admin/storefront/) ----------- */
+.special-event-panel {
+    border: 2px solid #EEE;
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin: 18px 0 24px;
+    transition: border-color 0.2s, background-color 0.2s;
+}
+
+.special-event-panel.is-active {
+    border-color: #E0A800;
+    background: #FFF8E1;
+}
+
+.switch {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    font-weight: 700;
+    color: #444;
+    user-select: none;
+}
+
+/* The real checkbox stays focusable/clickable but invisible over the track. */
+.switch input {
+    position: absolute;
+    opacity: 0;
+    width: 1px;
+    height: 1px;
+}
+
+.switch-track {
+    position: relative;
+    flex: none;
+    width: 46px;
+    height: 26px;
+    border-radius: 13px;
+    background: #CCC;
+    transition: background-color 0.2s;
+}
+
+.switch-track::after {
+    content: '';
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #FFF;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+    transition: transform 0.2s;
+}
+
+.switch input:checked + .switch-track {
+    background: #E0A800;
+}
+
+.switch input:checked + .switch-track::after {
+    transform: translateX(20px);
+}
+
+.switch input:focus-visible + .switch-track {
+    box-shadow: 0 0 0 4px rgba(27, 117, 187, 0.25);
+}
+
+.switch input:disabled + .switch-track {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.special-event-panel .form-group {
+    margin: 14px 0 0;
+}
+
+.special-event-banner {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 12px 0 0;
+    font-weight: 600;
+    color: #7A5B00;
+}
+
+.special-event-banner[hidden] {
+    display: none;
+}
+
+.special-event-manage {
+    margin-top: 14px;
+    font-size: 0.9rem;
+}
+
+.special-event-manage summary {
+    cursor: pointer;
+    color: #1B75BB;
+    font-weight: 600;
+}
+
+.special-event-list {
+    list-style: none;
+    padding: 0;
+    margin: 10px 0;
+}
+
+.special-event-list li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 6px 0;
+    border-bottom: 1px solid #EEE;
+}
+
+.special-event-list small {
+    color: #777;
+    font-weight: 400;
+}
+
+.special-event-list li.is-disabled > span {
+    color: #999;
+}
+
+.switch-small .switch-track {
+    width: 36px;
+    height: 20px;
+    border-radius: 10px;
+}
+
+.switch-small .switch-track::after {
+    width: 14px;
+    height: 14px;
+}
+
+.switch-small input:checked + .switch-track::after {
+    transform: translateX(16px);
+}
+
+.special-event-manage .input-with-action input {
+    padding: 10px 14px;
+}
+
+.special-event-manage .secondary-btn {
+    width: auto;
+    margin-top: 0;
+    padding: 0 16px;
+}
+
+.submit-btn.is-special-event {
+    background: #9A6B00;
+    box-shadow: 0 10px 15px -3px rgba(154, 107, 0, 0.3);
+}
+
+.submit-btn.is-special-event:hover {
+    background: #7A5500;
+}
+
+.special-event-tag {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 1px 8px;
+    border-radius: 999px;
+    background: #FFF1C2;
+    color: #7A5B00;
+    font-size: 0.72rem;
+    font-weight: 700;
+    vertical-align: middle;
+}
+
+@media (max-width: 600px) {
+    .special-event-manage .secondary-btn {
+        width: 100%;
+        padding: 10px 16px;
+    }
+}
