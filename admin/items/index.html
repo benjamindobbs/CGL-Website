@@ -192,6 +192,7 @@
                         <option value="School Store">School Store</option>
                         <option value="Athletics">Athletics</option>
                         <option value="GFX">GFX</option>
+                        <option value="Donations">Donations</option>
                     </select>
                 </div>
                 <div class="form-group">
@@ -243,7 +244,11 @@
             // color cards and bulk actions are .admin-only, and rows get no Edit.
             const canEdit = isAdminSession(session);
             const $ = (id) => document.getElementById(id);
+            // Categories staff can file items under. "Donations" also exists but
+            // holds only the built-in Donation item (uuid 'donation'), which
+            // can't be edited here; it's in the filter dropdown only.
             const CATEGORIES = ['School Store', 'Athletics', 'GFX'];
+            const DONATION_UUID = 'donation';
             const money = (cents) => `$${(cents / 100).toFixed(2)}`;
             const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => (
                 { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]
@@ -485,7 +490,9 @@
                         <td>${money(item.price_cents)}</td>
                         <td>${item.stock_qty}</td>
                         <td>${orderBadge}</td>
-                        <td>${canEdit ? '<button type="button" class="link-btn row-edit">Edit</button>' : ''}</td>
+                        <td>${item.uuid === DONATION_UUID
+                            ? '<small class="placeholder-text">Built in</small>'
+                            : canEdit ? '<button type="button" class="link-btn row-edit">Edit</button>' : ''}</td>
                     </tr>
                 `;
             }

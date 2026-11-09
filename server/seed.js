@@ -1,7 +1,7 @@
 // Seeds the fixed Uniforms catalog rows on boot. Idempotent (INSERT OR
 // IGNORE keyed on a stable, human-readable id) so re-running never
 // duplicates rows or clobbers stock levels staff have since adjusted.
-const { db } = require('./db');
+const { db, DONATIONS_CATEGORY, DONATION_UUID } = require('./db');
 
 const COLORS = ['White', 'Black'];
 const SIZES = ['S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL'];
@@ -119,6 +119,21 @@ function seedHocoTicket() {
     `).run(HOCO_TICKET.uuid, HOCO_TICKET.name, HOCO_TICKET.priceCents, HOCO_TICKET.detail, HOCO_TICKET.startingStock, Date.now());
 }
 
+// The single system item in the Donations category (see db.js). Re-asserted
+// on every boot so it always stays in Donations, unpriced (the amount is
+// entered at the register), hidden from the order page, active, and out of
+// stock tracking. Its QR label prints from /admin/labels/ like any item.
+function seedDonationItem() {
+    db.prepare(`
+        INSERT OR IGNORE INTO items(uuid, name, category, variant_color, variant_size, price_cents, detail, stock_qty, active, orderable, created_at)
+        VALUES(?, 'Donation', ?, NULL, NULL, 0, 'Scan at the register, then enter the donation amount.', 0, 1, 0, ?)
+    `).run(DONATION_UUID, DONATIONS_CATEGORY, Date.now());
+    db.prepare(`
+        UPDATE items SET category = ?, subcategory_id = NULL, price_cents = 0, stock_qty = 0, active = 1, orderable = 0
+        WHERE uuid = ?
+    `).run(DONATIONS_CATEGORY, DONATION_UUID);
+}
+
 // Initial staff whitelist, re-seeded on every boot so these core accounts
 // can't be locked out by an accidental removal. Use server/manage-staff.js
 // to add/remove anyone else (including students) against the live DB
@@ -204,4 +219,4 @@ function seedColors() {
     `).run(now);
 }
 
-module.exports = { seedUniforms, seedTraditionLine, seedHocoTicket, seedStaff, seedSubcategories, seedColors, INITIAL_STAFF, isCoreAccount };
+module.exports = { seedUniforms, seedTraditionLine, seedHocoTicket, seedStaff, seedSubcategories, seedColors, seedDonationItem, INITIAL_STAFF, isCoreAccount };

@@ -153,6 +153,34 @@
             </button>
         </div>
     </main>
+
+    <dialog id="donation-dialog" class="form-dialog donation-dialog" aria-labelledby="donation-dialog-title">
+        <form id="donation-form" novalidate>
+            <div id="donation-step-amount">
+                <h3 id="donation-dialog-title">Donation Amount</h3>
+                <p>Enter how much is being donated. Donations are tax-free.</p>
+                <label class="money-input" for="donation-amount">
+                    <span aria-hidden="true">$</span>
+                    <input type="text" id="donation-amount" inputmode="decimal" autocomplete="off"
+                        placeholder="0.00" aria-describedby="donation-error">
+                </label>
+                <p class="donation-error" id="donation-error" role="alert" hidden></p>
+                <div class="dialog-actions">
+                    <button type="button" class="secondary-btn" id="donation-cancel">Cancel</button>
+                    <button type="submit" class="submit-btn">Next</button>
+                </div>
+            </div>
+            <div id="donation-step-confirm" tabindex="-1" hidden>
+                <h3>Confirm Donation</h3>
+                <p>Is this the correct amount?</p>
+                <p class="donation-confirm-amount" id="donation-confirm-amount" aria-live="polite"></p>
+                <div class="dialog-actions">
+                    <button type="button" class="secondary-btn" id="donation-back">No, change it</button>
+                    <button type="button" class="submit-btn" id="donation-confirm">Yes, add donation</button>
+                </div>
+            </div>
+        </form>
+    </dialog>
         </div>
     </div>
     <div class="admin-scrim" id="admin-scrim" hidden></div>
@@ -361,18 +389,23 @@
                 saleListEl.innerHTML = saleLines.map((line, i) => {
                     const variant = [line.variant_color, line.variant_size].filter(Boolean).join(' / ');
                     const lineTotal = line.qty * line.price_cents;
+                    // A donation is always one line at its confirmed amount:
+                    // no quantity controls (remove and re-scan to change it).
+                    const qtyControls = line.isDonation ? '' : `
+                                <div class="sale-line-qty">
+                                    <button type="button" class="sale-qty-minus" data-index="${i}" aria-label="Decrease quantity">−</button>
+                                    <span>${line.qty}</span>
+                                    <button type="button" class="sale-qty-plus" data-index="${i}" aria-label="Increase quantity">+</button>
+                                </div>`;
                     return `
                         <div class="sale-line">
                             <div class="sale-line-info">
                                 <strong>${esc(line.name)}</strong>
                                 ${variant ? `<small>${esc(variant)}</small>` : ''}
+                                ${line.isDonation ? '<small>Tax-free</small>' : ''}
                             </div>
                             <div class="sale-line-controls">
-                                <div class="sale-line-qty">
-                                    <button type="button" class="sale-qty-minus" data-index="${i}" aria-label="Decrease quantity">−</button>
-                                    <span>${line.qty}</span>
-                                    <button type="button" class="sale-qty-plus" data-index="${i}" aria-label="Increase quantity">+</button>
-                                </div>
+                                ${qtyControls}
                                 <span class="sale-line-total">${money(lineTotal)}</span>
                                 <button type="button" class="sale-line-remove" data-index="${i}" aria-label="Remove item">
                                     <span class="material-symbols-outlined">delete</span>
@@ -420,6 +453,13 @@
                 }
                 const item = await res.json();
 
+                if (item.uuid === DONATION_UUID) {
+                    uuidInput.value = '';
+                    qtyInput.value = 1;
+                    openDonationDialog();
+                    return;
+                }
+
                 const existing = saleLines.find((l) => l.uuid === item.uuid);
                 if (existing) {
                     existing.qty += qty;
@@ -439,6 +479,91 @@
                 qtyInput.value = 1;
                 uuidInput.focus();
             }
+
+            // ---- Donations ----------------------------------------------
+            // Scanning the Donation item opens a two-step dialog: enter the
+            // amount, then confirm it on its own screen before it's added to
+            // the sale. Each donation is a separate tax-free line.
+            const DONATION_UUID = 'donation';
+            const MAX_DONATION_CENTS = 1000000; // matches server/db.js
+            const donationDialog = document.getElementById('donation-dialog');
+            const donationAmountInput = document.getElementById('donation-amount');
+            const donationErrorEl = document.getElementById('donation-error');
+            const donationStepAmount = document.getElementById('donation-step-amount');
+            const donationStepConfirm = document.getElementById('donation-step-confirm');
+            const donationConfirmAmountEl = document.getElementById('donation-confirm-amount');
+            let pendingDonationCents = null;
+
+            // "$1,234.5" -> 123450; null if it isn't a plain dollar amount
+            // with at most two decimal places.
+            function parseDollars(raw) {
+                const s = String(raw).trim().replace(/^\$/, '').replace(/,/g, '');
+                if (!/^(\d+(\.\d{0,2})?|\.\d{1,2})$/.test(s)) return null;
+                return Math.round(parseFloat(s) * 100);
+            }
+
+            function showDonationStep(step) {
+                donationStepAmount.hidden = step !== 'amount';
+                donationStepConfirm.hidden = step !== 'confirm';
+            }
+
+            function openDonationDialog() {
+                pendingDonationCents = null;
+                donationAmountInput.value = '';
+                donationErrorEl.hidden = true;
+                showDonationStep('amount');
+                donationDialog.showModal();
+                donationAmountInput.focus();
+            }
+
+            document.getElementById('donation-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                if (donationStepAmount.hidden) return;
+                const cents = parseDollars(donationAmountInput.value);
+                let error = '';
+                if (cents === null) error = 'Enter a dollar amount, like 20 or 12.50.';
+                else if (cents <= 0) error = 'The amount must be more than $0.00.';
+                else if (cents > MAX_DONATION_CENTS) error = `The amount can't be more than ${money(MAX_DONATION_CENTS)}.`;
+                if (error) {
+                    donationErrorEl.textContent = error;
+                    donationErrorEl.hidden = false;
+                    donationAmountInput.focus();
+                    return;
+                }
+                pendingDonationCents = cents;
+                donationConfirmAmountEl.textContent = money(cents);
+                showDonationStep('confirm');
+                // Focus the panel, not a button, so a second Enter press can't
+                // confirm by accident: someone has to choose deliberately.
+                donationStepConfirm.focus();
+            });
+
+            document.getElementById('donation-back').addEventListener('click', () => {
+                showDonationStep('amount');
+                donationAmountInput.focus();
+                donationAmountInput.select();
+            });
+
+            document.getElementById('donation-confirm').addEventListener('click', () => {
+                if (pendingDonationCents === null) return;
+                saleLines.push({
+                    uuid: DONATION_UUID,
+                    name: 'Donation',
+                    price_cents: pendingDonationCents,
+                    qty: 1,
+                    isDonation: true,
+                });
+                pendingDonationCents = null;
+                donationDialog.close();
+                renderSale();
+            });
+
+            document.getElementById('donation-cancel').addEventListener('click', () => donationDialog.close());
+            // Covers Cancel, Confirm and the Escape key.
+            donationDialog.addEventListener('close', () => {
+                pendingDonationCents = null;
+                uuidInput.focus();
+            });
 
             async function completeSale() {
                 resultEl.style.display = 'none';
@@ -476,7 +601,9 @@
                 const res = await authFetch('/api/inventory/storefront-sale', {
                     method: 'POST',
                     body: JSON.stringify({
-                        lines: saleLines.map((l) => ({ uuid: l.uuid, qty: l.qty })),
+                        lines: saleLines.map((l) => (l.isDonation
+                            ? { uuid: l.uuid, qty: 1, amountCents: l.price_cents }
+                            : { uuid: l.uuid, qty: l.qty })),
                         paymentMethod: paymentMethodInput.value,
                         location: locationInput.value,
                         specialEvent: currentSpecialEvent(),

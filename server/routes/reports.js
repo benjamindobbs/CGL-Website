@@ -1,5 +1,7 @@
 const { Router } = require('express');
-const { db, ITEM_CATEGORIES, CT_TAX_RATE, TAX_EXEMPT_SQL_LIST } = require('../db');
+const {
+    db, ITEM_CATEGORIES, CT_TAX_RATE, TAX_EXEMPT_SQL_LIST, TAX_EXEMPT_CATEGORY_SQL_LIST, DONATION_UUID,
+} = require('../db');
 const { requireAdmin } = require('../staffAuth');
 const { dayBound, etDate } = require('../etDate');
 
@@ -20,7 +22,8 @@ const UNFILED = 'Unfiled';
 // Counter sales rung up in Special Event mode (stock_events.special_event set)
 // are pulled out of their item's category into a top-level row named for the
 // event (isSpecialEvent: true), whose breakdown rows are labelled
-// "<category> · <sub-category>" to show what sold at the event.
+// "<category> · <sub-category>" (or just "<category>") to show what sold at
+// the event.
 router.get('/income-by-category', (_req, res) => {
     const orderRows = db.prepare(`
         SELECT i.category AS category, s.name AS subcategory,
@@ -34,19 +37,29 @@ router.get('/income-by-category', (_req, res) => {
         GROUP BY i.category, s.name
     `).all();
 
+    // A donation has no catalogue price: its value is the amount entered at
+    // the register, read back from the sale's ledger row.
     const counterRows = db.prepare(`
-        SELECT i.category AS category, s.name AS subcategory, se.special_event AS specialEvent,
-               SUM(-se.delta * i.price_cents) AS grossCents,
-               SUM(CASE
-                   WHEN LOWER(TRIM(COALESCE(s.name, ''))) IN (${TAX_EXEMPT_SQL_LIST}) THEN 0
-                   ELSE (-se.delta * i.price_cents)
-                        - CAST(ROUND(-se.delta * i.price_cents / ${1 + CT_TAX_RATE}) AS INTEGER)
-               END) AS taxCents
-        FROM stock_events se
-        JOIN items i ON i.uuid = se.item_uuid
-        LEFT JOIN subcategories s ON s.id = i.subcategory_id
-        WHERE se.reason = 'storefront_sale'
-        GROUP BY i.category, s.name, se.special_event
+        SELECT category, subcategory, specialEvent,
+               SUM(gross) AS grossCents,
+               SUM(CASE WHEN exempt THEN 0
+                        ELSE gross - CAST(ROUND(gross / ${1 + CT_TAX_RATE}) AS INTEGER)
+                   END) AS taxCents
+        FROM (
+            SELECT i.category AS category, s.name AS subcategory, se.special_event AS specialEvent,
+                   CASE WHEN se.item_uuid = '${DONATION_UUID}'
+                        THEN COALESCE((SELECT t.amount_cents FROM transactions t
+                                       WHERE t.ref_stock_event_id = se.id AND t.source = 'storefront_sale'), 0)
+                        ELSE -se.delta * i.price_cents
+                   END AS gross,
+                   (LOWER(TRIM(COALESCE(s.name, ''))) IN (${TAX_EXEMPT_SQL_LIST})
+                    OR i.category IN (${TAX_EXEMPT_CATEGORY_SQL_LIST})) AS exempt
+            FROM stock_events se
+            JOIN items i ON i.uuid = se.item_uuid
+            LEFT JOIN subcategories s ON s.id = i.subcategory_id
+            WHERE se.reason = 'storefront_sale'
+        )
+        GROUP BY category, subcategory, specialEvent
     `).all();
 
     const byCategory = new Map();
@@ -85,7 +98,7 @@ router.get('/income-by-category', (_req, res) => {
         const net = (row.grossCents || 0) - (row.taxCents || 0);
         const top = row.specialEvent ? bucket(row.specialEvent, true) : bucket(row.category);
         const sub = row.specialEvent
-            ? subBucket(row.specialEvent, `${row.category} · ${row.subcategory || UNFILED}`)
+            ? subBucket(row.specialEvent, row.subcategory ? `${row.category} · ${row.subcategory}` : row.category)
             : subBucket(row.category, row.subcategory);
         top.counterCents += net;
         top.taxCents += row.taxCents || 0;

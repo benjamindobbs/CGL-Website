@@ -457,8 +457,19 @@ db.exec(`
 // The fixed set of item categories. Income is totalled per category on the
 // Staff Tools home page. GFX is the default / catch-all (all legacy items were
 // consolidated into it by migration v1 below).
-const ITEM_CATEGORIES = ['School Store', 'Athletics', 'GFX'];
+const ITEM_CATEGORIES = ['School Store', 'Athletics', 'GFX', 'Donations'];
 const DEFAULT_CATEGORY = 'GFX';
+
+// Donations: a system category holding exactly one item, "Donation" (seeded in
+// server/seed.js). It has no fixed price: the storefront asks for an amount
+// each time, and that amount is what gets recorded. Tax-exempt, never sold
+// online, and stock isn't tracked. Staff can't file other items or
+// sub-categories under it, or edit the Donation item.
+const DONATIONS_CATEGORY = 'Donations';
+const DONATION_UUID = 'donation';
+const MAX_DONATION_CENTS = 1000000; // $10,000 — a typo guard, not a policy
+// Categories that can be picked for ordinary catalog items / sub-categories.
+const ASSIGNABLE_CATEGORIES = ITEM_CATEGORIES.filter((c) => c !== DONATIONS_CATEGORY);
 
 // Connecticut sales tax. The catalogue price_cents is treated as tax-INCLUSIVE:
 // the customer pays exactly price_cents, and that amount already contains the
@@ -479,6 +490,16 @@ const TAX_EXEMPT_SQL_LIST = TAX_EXEMPT_SUBCATEGORIES.map((n) => `'${n}'`).join('
 // case/space-insensitive so "Supplies", " supplies " etc. all count.
 function isSubcategoryTaxExempt(subcategoryName) {
     return TAX_EXEMPT_SUBCATEGORIES.includes(String(subcategoryName ?? '').trim().toLowerCase());
+}
+
+// Whole top categories with no CT sales tax.
+const TAX_EXEMPT_CATEGORIES = [DONATIONS_CATEGORY];
+const TAX_EXEMPT_CATEGORY_SQL_LIST = TAX_EXEMPT_CATEGORIES.map((n) => `'${n}'`).join(', ');
+
+// True when a catalog item (an ITEM_SELECT row: needs `category` and
+// `subcategory`) carries no CT sales tax, by category or by sub-category.
+function isItemTaxExempt(item) {
+    return TAX_EXEMPT_CATEGORIES.includes(item.category) || isSubcategoryTaxExempt(item.subcategory);
 }
 
 // Splits a gross (tax-inclusive) amount into { netCents, taxCents } such that
@@ -894,6 +915,8 @@ module.exports = {
     applyStockDelta, recordTransaction, randomUUID,
     ITEM_CATEGORIES, DEFAULT_CATEGORY, normalizeCategory, normalizeHex, findSpecialEvent,
     CT_TAX_RATE, splitTaxInclusive, isSubcategoryTaxExempt, TAX_EXEMPT_SQL_LIST,
+    isItemTaxExempt, TAX_EXEMPT_CATEGORY_SQL_LIST,
+    DONATIONS_CATEGORY, DONATION_UUID, MAX_DONATION_CENTS, ASSIGNABLE_CATEGORIES,
     JOB_CATEGORIES, JERSEY_SIZES,
     DECORATION_CATEGORIES, DESIGN_LOCATIONS, GARMENT_TYPES, APPAREL_SIZES, DECORATION_COLOR_LIMITS,
     SIZED_CATEGORIES, SURFACE_CATEGORIES, SURFACE_TYPES,

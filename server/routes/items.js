@@ -1,5 +1,8 @@
 const { Router } = require('express');
-const { db, randomUUID, normalizeCategory, ITEM_CATEGORIES, ITEM_SELECT, getItem, normalizeHex } = require('../db');
+const {
+    db, randomUUID, normalizeCategory, ITEM_CATEGORIES, ITEM_SELECT, getItem, normalizeHex,
+    DONATIONS_CATEGORY, DONATION_UUID,
+} = require('../db');
 const { requireStaff, requireAdmin } = require('../staffAuth');
 
 const router = Router();
@@ -20,8 +23,12 @@ function ensurePaletteColors(newColors) {
 // Resolves the sub-category for a write. Passing a null/blank id files the item
 // under no sub-category. Passing a real id pins the item's top category to that
 // sub-category's parent, so the two can never drift out of sync. Throws a
-// { status, message } on a bad id.
+// { status, message } on a bad id. Nothing can be filed under Donations — it
+// holds only the system Donation item (see db.js).
 function resolveFiling(subcategoryId, category) {
+    if (category === DONATIONS_CATEGORY) {
+        throw { status: 400, message: 'Donations holds only the built-in Donation item' };
+    }
     const fallbackCategory = normalizeCategory(category);
     if (subcategoryId === undefined || subcategoryId === null || subcategoryId === '') {
         return { subcategoryId: null, category: fallbackCategory };
@@ -100,6 +107,9 @@ router.post('/', requireAdmin, (req, res) => {
 router.patch('/:uuid', requireAdmin, (req, res) => {
     const current = db.prepare('SELECT * FROM items WHERE uuid = ?').get(req.params.uuid);
     if (!current) return res.status(404).json({ error: 'No item found for that UUID' });
+    if (current.uuid === DONATION_UUID) {
+        return res.status(400).json({ error: 'The Donation item is built in and can\'t be edited' });
+    }
 
     const body = req.body || {};
     const sets = [];
@@ -237,6 +247,9 @@ router.post('/bulk-orderable', requireAdmin, (req, res) => {
     if (category !== undefined && category !== null && category !== '') {
         if (!ITEM_CATEGORIES.includes(category)) {
             return res.status(400).json({ error: 'Unknown category' });
+        }
+        if (category === DONATIONS_CATEGORY) {
+            return res.status(400).json({ error: 'Donations can never be shown on the order page' });
         }
         where.push('category = ?');
         params.push(category);

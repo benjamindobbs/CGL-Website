@@ -1,8 +1,11 @@
 const { Router } = require('express');
-const { db, normalizeCategory } = require('../db');
+const { db, normalizeCategory, DONATIONS_CATEGORY } = require('../db');
 const { requireStaff, requireAdmin } = require('../staffAuth');
 
 const router = Router();
+
+// Donations holds only the system Donation item, so it gets no sub-categories.
+const DONATIONS_ERROR = 'Donations can\'t have sub-categories';
 router.use(requireStaff);
 
 // Every response is the full list, each row annotated with how many catalog
@@ -23,6 +26,7 @@ router.get('/', (_req, res) => {
 
 router.post('/', requireAdmin, (req, res) => {
     const name = String(req.body.name || '').trim().replace(/\s+/g, ' ');
+    if (req.body.category === DONATIONS_CATEGORY) return res.status(400).json({ error: DONATIONS_ERROR });
     const category = normalizeCategory(req.body.category);
     if (!name) return res.status(400).json({ error: 'Missing sub-category name' });
 
@@ -43,6 +47,7 @@ router.post('/', requireAdmin, (req, res) => {
 router.patch('/:id', requireAdmin, (req, res) => {
     const existing = db.prepare('SELECT * FROM subcategories WHERE id = ?').get(req.params.id);
     if (!existing) return res.status(404).json({ error: 'Sub-category not found' });
+    if (req.body.category === DONATIONS_CATEGORY) return res.status(400).json({ error: DONATIONS_ERROR });
 
     const name = req.body.name !== undefined
         ? String(req.body.name).trim().replace(/\s+/g, ' ')

@@ -1,5 +1,5 @@
 const { Router } = require('express');
-const { db, applyStockDelta, recordTransaction, normalizeCategory, splitTaxInclusive, isSubcategoryTaxExempt, CT_TAX_RATE, ITEM_SELECT } = require('../db');
+const { db, applyStockDelta, recordTransaction, normalizeCategory, splitTaxInclusive, isItemTaxExempt, CT_TAX_RATE, ITEM_SELECT } = require('../db');
 const { requireAuth } = require('../auth');
 const { requireStaff, requireAdmin } = require('../staffAuth');
 const { stripe, isStripeConfigured, PUBLIC_BASE_URL } = require('../stripe');
@@ -48,8 +48,9 @@ router.post('/', requireAuth, async (req, res) => {
         if (!Number.isInteger(qty) || qty <= 0) return res.status(400).json({ error: `Invalid quantity for ${item.name}` });
         const lineTotalCents = item.price_cents * qty;
         // price_cents is tax-inclusive; pull the CT sales tax back out of the
-        // line total (0 for items in a "Supplies" or "Tickets" sub-category).
-        const { taxCents } = splitTaxInclusive(lineTotalCents, !isSubcategoryTaxExempt(item.subcategory));
+        // line total (0 for items in a "Supplies" or "Tickets" sub-category or
+        // a tax-exempt category).
+        const { taxCents } = splitTaxInclusive(lineTotalCents, !isItemTaxExempt(item));
         lines.push({ item, qty, lineTotalCents, taxCents });
     }
 

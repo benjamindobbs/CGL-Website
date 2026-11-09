@@ -3359,3 +3359,52 @@ html:has(.hoco-page) {
         padding: 10px 16px;
     }
 }
+
+/* ---- Storefront Sale: donation amount dialog (admin/storefront/) ------- */
+.money-input {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border: 2px solid #EEE;
+    border-radius: 12px;
+    padding: 0 16px;
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #444;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.money-input:focus-within {
+    border-color: #1B75BB;
+    box-shadow: 0 0 0 4px rgba(27, 117, 187, 0.15);
+}
+
+.money-input input {
+    flex: 1;
+    min-width: 0;
+    border: none;
+    outline: none;
+    padding: 14px 0;
+    font: inherit;
+    color: #333;
+    background: transparent;
+}
+
+.donation-error {
+    margin: 10px 0 0;
+    color: #c0392b;
+    font-weight: 600;
+}
+
+#donation-step-confirm:focus {
+    outline: none;
+}
+
+.form-dialog .donation-confirm-amount {
+    margin: 8px 0 4px;
+    text-align: center;
+    font-size: 2.6rem;
+    font-weight: 800;
+    color: #1B75BB;
+    font-variant-numeric: tabular-nums;
+}

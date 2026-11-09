@@ -1,5 +1,8 @@
 const { Router } = require('express');
-const { db, applyStockDelta, recordTransaction, splitTaxInclusive, isSubcategoryTaxExempt, ITEM_SELECT, findSpecialEvent } = require('../db');
+const {
+    db, applyStockDelta, recordTransaction, splitTaxInclusive, isItemTaxExempt, ITEM_SELECT, findSpecialEvent,
+    DONATION_UUID, MAX_DONATION_CENTS,
+} = require('../db');
 const { requireAdmin } = require('../staffAuth');
 const { isCoreAccount } = require('../seed');
 
@@ -23,6 +26,7 @@ router.post('/restock', (req, res) => {
 
     const item = findItem(uuid);
     if (!item) return res.status(404).json({ error: 'No item found for that UUID' });
+    if (item.uuid === DONATION_UUID) return res.status(400).json({ error: 'Donations have no stock to restock' });
 
     applyStockDelta({ itemUuid: uuid, delta: quantity, reason: 'restock', actorUserKey: req.userKey });
     res.json(findItem(uuid));
@@ -39,6 +43,13 @@ router.post('/restock', (req, res) => {
 // register reconciliation show the event as its own line. Stock and CT tax
 // are handled exactly as for a normal sale. Core lab accounts only, and the
 // type must be enabled.
+//
+// Donation lines ({ uuid: 'donation', qty: 1, amountCents }) carry their own
+// amount, entered and confirmed at the register. Each is one donation (qty is
+// always 1), tax-exempt, and moves no stock: the stock event is recorded with
+// delta 0 only so the line can be tagged with the special event and joined
+// to its ledger row by the income report. Donations follow Special Event
+// mode like any other line.
 router.post('/storefront-sale', (req, res) => {
     const { lines, paymentMethod, location } = req.body;
     let specialEvent = '';
@@ -71,29 +82,47 @@ router.post('/storefront-sale', (req, res) => {
         }
         const item = findItem(uuid);
         if (!item) return res.status(404).json({ error: `No item found for UUID ${uuid}` });
+        if (item.uuid === DONATION_UUID) {
+            const amountCents = Number(line.amountCents);
+            if (quantity !== 1) return res.status(400).json({ error: 'Ring up each donation as its own line' });
+            if (!Number.isInteger(amountCents) || amountCents <= 0 || amountCents > MAX_DONATION_CENTS) {
+                return res.status(400).json({
+                    error: `Donation amount must be between $0.01 and $${(MAX_DONATION_CENTS / 100).toLocaleString('en-US')}`,
+                });
+            }
+            resolved.push({ item, quantity, donationCents: amountCents });
+            continue;
+        }
         resolved.push({ item, quantity });
     }
 
     const soldItems = [];
     let totalCents = 0;
-    for (const { item, quantity } of resolved) {
+    for (const { item, quantity, donationCents } of resolved) {
+        const isDonation = donationCents !== undefined;
         const { stockEventId } = applyStockDelta({
-            itemUuid: item.uuid, delta: -quantity, reason: 'storefront_sale', actorUserKey: req.userKey, specialEvent,
+            itemUuid: item.uuid,
+            delta: isDonation ? 0 : -quantity,
+            reason: 'storefront_sale',
+            actorUserKey: req.userKey,
+            note: isDonation ? `Donation $${(donationCents / 100).toFixed(2)}` : '',
+            specialEvent,
         });
 
         // Financial ledger entry. Amount is snapshotted at the current price so
-        // a later price change never rewrites this sale. price_cents is
-        // tax-inclusive; pull the CT sales tax out of the line total (0 for a
-        // "Supplies" / "Tickets" item).
-        const grossCents = quantity * item.price_cents;
-        const { taxCents } = splitTaxInclusive(grossCents, !isSubcategoryTaxExempt(item.subcategory));
+        // a later price change never rewrites this sale (a donation uses the
+        // amount entered). price_cents is tax-inclusive; pull the CT sales tax
+        // out of the line total (0 for a "Supplies" / "Tickets" item or a
+        // tax-exempt category such as Donations).
+        const grossCents = isDonation ? donationCents : quantity * item.price_cents;
+        const { taxCents } = splitTaxInclusive(grossCents, !isItemTaxExempt(item));
         recordTransaction({
             type: 'deposit',
             vendor: 'Storefront',
             amountCents: grossCents,
             taxCents,
             account: specialEvent || item.category,
-            notes: `${item.name}${variantLabel(item)} x${quantity}`,
+            notes: isDonation ? 'Donation' : `${item.name}${variantLabel(item)} x${quantity}`,
             source: 'storefront_sale',
             paymentMethod,
             location,
