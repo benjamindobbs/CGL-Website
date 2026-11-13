@@ -294,9 +294,27 @@ db.exec(`
         actor_user_key TEXT    NOT NULL,
         note           TEXT    NOT NULL DEFAULT '',
         ref_order_id   INTEGER,
+        -- Name of the special event (special_events.name) a storefront sale
+        -- was rung up under, or '' for a normal sale.
+        special_event  TEXT    NOT NULL DEFAULT '',
         created_at     INTEGER NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_stock_events_item ON stock_events(item_uuid);
+
+    -- Admin-managed list of special event types (e.g. "Theatre"). While the
+    -- Storefront Sale page is in Special Event mode, each sale is booked to
+    -- the event's name instead of the item's category: transactions.account
+    -- holds the name, and stock_events.special_event tags the stock movement
+    -- so the income report can show the event as its own line. Types are
+    -- never deleted, only disabled (enabled = 0), which hides them from the
+    -- picker; past sales keep the name they were booked under. Managing types
+    -- and ringing up event sales are core-account only (requireCore).
+    CREATE TABLE IF NOT EXISTS special_events (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        name       TEXT    NOT NULL UNIQUE COLLATE NOCASE,
+        enabled    INTEGER NOT NULL DEFAULT 1,
+        created_at INTEGER NOT NULL
+    );
 
     -- payment_status is app-enforced (no CHECK so ALTER ADD COLUMN on older DBs
     -- stays simple): 'unpaid' (order placed, Stripe Checkout not completed),
@@ -453,8 +471,19 @@ db.exec(`
 // The fixed set of item categories. Income is totalled per category on the
 // Staff Tools home page. GFX is the default / catch-all (all legacy items were
 // consolidated into it by migration v1 below).
-const ITEM_CATEGORIES = ['School Store', 'Athletics', 'GFX'];
+const ITEM_CATEGORIES = ['School Store', 'Athletics', 'GFX', 'Donations'];
 const DEFAULT_CATEGORY = 'GFX';
+
+// Donations: a system category holding exactly one item, "Donation" (seeded in
+// server/seed.js). It has no fixed price: the storefront asks for an amount
+// each time, and that amount is what gets recorded. Tax-exempt, never sold
+// online, and stock isn't tracked. Staff can't file other items or
+// sub-categories under it, or edit the Donation item.
+const DONATIONS_CATEGORY = 'Donations';
+const DONATION_UUID = 'donation';
+const MAX_DONATION_CENTS = 1000000; // $10,000 — a typo guard, not a policy
+// Categories that can be picked for ordinary catalog items / sub-categories.
+const ASSIGNABLE_CATEGORIES = ITEM_CATEGORIES.filter((c) => c !== DONATIONS_CATEGORY);
 
 // Connecticut sales tax. The catalogue price_cents is treated as tax-INCLUSIVE:
 // the customer pays exactly price_cents, and that amount already contains the
@@ -475,6 +504,16 @@ const TAX_EXEMPT_SQL_LIST = TAX_EXEMPT_SUBCATEGORIES.map((n) => `'${n}'`).join('
 // case/space-insensitive so "Supplies", " supplies " etc. all count.
 function isSubcategoryTaxExempt(subcategoryName) {
     return TAX_EXEMPT_SUBCATEGORIES.includes(String(subcategoryName ?? '').trim().toLowerCase());
+}
+
+// Whole top categories with no CT sales tax.
+const TAX_EXEMPT_CATEGORIES = [DONATIONS_CATEGORY];
+const TAX_EXEMPT_CATEGORY_SQL_LIST = TAX_EXEMPT_CATEGORIES.map((n) => `'${n}'`).join(', ');
+
+// True when a catalog item (an ITEM_SELECT row: needs `category` and
+// `subcategory`) carries no CT sales tax, by category or by sub-category.
+function isItemTaxExempt(item) {
+    return TAX_EXEMPT_CATEGORIES.includes(item.category) || isSubcategoryTaxExempt(item.subcategory);
 }
 
 // Splits a gross (tax-inclusive) amount into { netCents, taxCents } such that
@@ -524,10 +563,17 @@ function normalizeCategory(value) {
     return ITEM_CATEGORIES.includes(value) ? value : DEFAULT_CATEGORY;
 }
 
+// The special event type with this name (case-insensitive), or undefined.
+// Includes disabled types; callers check `enabled`.
+function findSpecialEvent(name) {
+    return db.prepare('SELECT id, name, enabled FROM special_events WHERE name = ? COLLATE NOCASE')
+        .get(String(name ?? '').trim());
+}
+
 // --- Schema migrations -------------------------------------------------------
 // Bump SCHEMA_VERSION and add a matching `if (fromVersion < N)` block for each
 // change. PRAGMA user_version persists in the DB file, so each block runs once.
-const SCHEMA_VERSION = 12;
+const SCHEMA_VERSION = 13;
 const fromVersion = db.prepare('PRAGMA user_version').get().user_version;
 
 // True when the table already has the given column (used to make ADD COLUMN
@@ -736,7 +782,20 @@ for (const [col, type] of [['name_number', "TEXT NOT NULL DEFAULT ''"], ['method
     }
 }
 
-// v12: student ID on counter ticket sales. Column-guarded like v9; every
+// v12: special events (storefront sales booked to an event, not a category).
+// Column-guarded like v9; the table itself comes from CREATE TABLE above. The
+// starter "Theatre" type is seeded once, so deleting it later sticks.
+if (!tableHasColumn('stock_events', 'special_event')) {
+    db.exec("ALTER TABLE stock_events ADD COLUMN special_event TEXT NOT NULL DEFAULT ''");
+}
+if (!tableHasColumn('special_events', 'enabled')) {
+    db.exec('ALTER TABLE special_events ADD COLUMN enabled INTEGER NOT NULL DEFAULT 1');
+}
+if (fromVersion < 12) {
+    db.prepare('INSERT OR IGNORE INTO special_events(name, created_at) VALUES(?, ?)').run('Theatre', Date.now());
+}
+
+// v13: student ID on counter ticket sales. Column-guarded like v9; every
 // existing row predates it and keeps ''. student_ids comes from CREATE TABLE
 // IF NOT EXISTS above.
 if (!tableHasColumn('transactions', 'student_id')) {
@@ -781,16 +840,16 @@ function isSigninAllowed(email) {
 
 // Moves an item's stock by delta and records why, atomically. reason must be
 // one of the stock_events CHECK values. ref_order_id is only meaningful for
-// reason='order'.
-function applyStockDelta({ itemUuid, delta, reason, actorUserKey, note = '', refOrderId = null }) {
+// reason='order'; specialEvent only for reason='storefront_sale'.
+function applyStockDelta({ itemUuid, delta, reason, actorUserKey, note = '', refOrderId = null, specialEvent = '' }) {
     db.exec('BEGIN');
     try {
         const result = db.prepare('UPDATE items SET stock_qty = stock_qty + ? WHERE uuid = ?').run(delta, itemUuid);
         if (result.changes === 0) throw new Error('Unknown item UUID');
         const insert = db.prepare(
-            `INSERT INTO stock_events(item_uuid, delta, reason, actor_user_key, note, ref_order_id, created_at)
-             VALUES(?, ?, ?, ?, ?, ?, ?)`
-        ).run(itemUuid, delta, reason, actorUserKey, note, refOrderId, Date.now());
+            `INSERT INTO stock_events(item_uuid, delta, reason, actor_user_key, note, ref_order_id, special_event, created_at)
+             VALUES(?, ?, ?, ?, ?, ?, ?, ?)`
+        ).run(itemUuid, delta, reason, actorUserKey, note, refOrderId, specialEvent, Date.now());
         db.exec('COMMIT');
         return { stockEventId: Number(insert.lastInsertRowid) };
     } catch (err) {
@@ -875,8 +934,10 @@ function sweepStaleUnpaidOrders(maxAgeMs = 24 * 60 * 60 * 1000) {
 module.exports = {
     db, upsertUser, isStaff, getStaffRole, STAFF_ROLES, isSigninAllowed,
     applyStockDelta, recordTransaction, randomUUID,
-    ITEM_CATEGORIES, DEFAULT_CATEGORY, normalizeCategory, normalizeHex,
+    ITEM_CATEGORIES, DEFAULT_CATEGORY, normalizeCategory, normalizeHex, findSpecialEvent,
     CT_TAX_RATE, splitTaxInclusive, isSubcategoryTaxExempt, TAX_EXEMPT_SQL_LIST,
+    isItemTaxExempt, TAX_EXEMPT_CATEGORY_SQL_LIST,
+    DONATIONS_CATEGORY, DONATION_UUID, MAX_DONATION_CENTS, ASSIGNABLE_CATEGORIES,
     JOB_CATEGORIES, JERSEY_SIZES,
     DECORATION_CATEGORIES, DESIGN_LOCATIONS, GARMENT_TYPES, APPAREL_SIZES, DECORATION_COLOR_LIMITS,
     SIZED_CATEGORIES, SURFACE_CATEGORIES, SURFACE_TYPES,

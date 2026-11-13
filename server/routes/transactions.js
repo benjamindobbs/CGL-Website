@@ -1,5 +1,5 @@
 const { Router } = require('express');
-const { db } = require('../db');
+const { db, ITEM_CATEGORIES } = require('../db');
 const { requireAdmin } = require('../staffAuth');
 const { csvDocument } = require('../csv');
 const { dayBound, etDate } = require('../etDate');
@@ -44,6 +44,20 @@ const CSV_HEADERS = ['Posted Date', 'Type', 'Vendor', 'Amount', 'Tax', 'Net', 'A
 
 router.get('/', (req, res) => {
     res.json(queryTransactions(req.query));
+});
+
+// Every account the log can be filtered by: the item categories, then current
+// special event types plus any account already in the ledger (e.g. a deleted
+// event type that still has sales booked to it).
+router.get('/accounts', (_req, res) => {
+    const extra = db.prepare(`
+        SELECT name FROM special_events
+        UNION
+        SELECT DISTINCT account FROM transactions WHERE account <> ''
+    `).all().map((r) => r.name)
+        .filter((name) => !ITEM_CATEGORIES.includes(name))
+        .sort((a, b) => a.localeCompare(b));
+    res.json([...ITEM_CATEGORIES, ...new Set(extra)]);
 });
 
 router.get('/export.csv', (req, res) => {
