@@ -26,6 +26,7 @@ app.use('/api/items',         require('./routes/items'));
 app.use('/api/subcategories', require('./routes/subcategories'));
 app.use('/api/colors',        require('./routes/colors'));
 app.use('/api/inventory',     require('./routes/inventory'));
+app.use('/api/students',      require('./routes/students'));
 app.use('/api/orders',        require('./routes/orders'));
 app.use('/api/transactions',  require('./routes/transactions'));
 app.use('/api/reports',       require('./routes/reports'));

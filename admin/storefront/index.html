@@ -121,11 +121,42 @@
                 <span class="material-symbols-outlined">point_of_sale</span>
                 Complete Sale
             </button>
+
+            <details class="paste-block student-list" id="student-list">
+                <summary>Student ID List <span id="student-list-count"></span></summary>
+                <small class="field-note">Ticket sales check each buyer's student ID against this list.
+                    Upload a CSV with one student ID per row (a header row is fine). Replace swaps in a
+                    new school year's list; Add keeps the current IDs and adds new ones.</small>
+                <div class="form-group" style="margin:12px 0 0;">
+                    <input type="file" id="student-list-file" accept=".csv,.txt,text/csv,text/plain">
+                </div>
+                <div class="segmented" style="margin-top:12px;">
+                    <label><input type="radio" name="student-list-mode" value="replace" checked> Replace</label>
+                    <label><input type="radio" name="student-list-mode" value="add"> Add</label>
+                </div>
+                <button type="button" id="student-list-upload" class="secondary-btn">
+                    <span class="material-symbols-outlined">upload</span>
+                    Upload List
+                </button>
+                <small id="student-list-result" class="field-note" style="display:none;font-weight:600;"></small>
+            </details>
         </div>
     </main>
         </div>
     </div>
     <div class="admin-scrim" id="admin-scrim" hidden></div>
+
+    <!-- Opened when a "Tickets" sub-category item is added to the sale: one
+         student ID per ticket, each checked against the student list. -->
+    <dialog id="ticket-dialog" class="form-dialog" aria-labelledby="ticket-dialog-title">
+        <h3 id="ticket-dialog-title">Student IDs</h3>
+        <p id="ticket-dialog-note"></p>
+        <div id="ticket-id-fields"></div>
+        <div class="dialog-actions">
+            <button type="button" id="ticket-cancel" class="secondary-btn">Cancel</button>
+            <button type="button" id="ticket-ok" class="submit-btn" disabled>Add to Sale</button>
+        </div>
+    </dialog>
 
     <script src="https://accounts.google.com/gsi/client" async defer onload="gisLoaded()"></script>
     <script src="/scripts/auth.js"></script>
@@ -180,6 +211,8 @@
                 saleEmptyEl.style.display = hasLines ? 'none' : '';
                 saleTotalRowEl.style.display = hasLines ? '' : 'none';
 
+                // Ticket lines are always qty 1 (one per student ID), so they
+                // show the ID instead of +/- controls.
                 saleListEl.innerHTML = saleLines.map((line, i) => {
                     const variant = [line.variant_color, line.variant_size].filter(Boolean).join(' / ');
                     const lineTotal = line.qty * line.price_cents;
@@ -188,12 +221,13 @@
                             <div class="sale-line-info">
                                 <strong>${esc(line.name)}</strong>
                                 ${variant ? `<small>${esc(variant)}</small>` : ''}
+                                ${line.studentId ? `<small>Student ID ${esc(line.studentId)}</small>` : ''}
                             </div>
                             <div class="sale-line-controls">
                                 <div class="sale-line-qty">
-                                    <button type="button" class="sale-qty-minus" data-index="${i}" aria-label="Decrease quantity">−</button>
+                                    ${line.studentId ? '' : `<button type="button" class="sale-qty-minus" data-index="${i}" aria-label="Decrease quantity">−</button>`}
                                     <span>${line.qty}</span>
-                                    <button type="button" class="sale-qty-plus" data-index="${i}" aria-label="Increase quantity">+</button>
+                                    ${line.studentId ? '' : `<button type="button" class="sale-qty-plus" data-index="${i}" aria-label="Increase quantity">+</button>`}
                                 </div>
                                 <span class="sale-line-total">${money(lineTotal)}</span>
                                 <button type="button" class="sale-line-remove" data-index="${i}" aria-label="Remove item">
@@ -242,6 +276,11 @@
                 }
                 const item = await res.json();
 
+                if (isTicketItem(item)) {
+                    openTicketDialog(item, qty);
+                    return;
+                }
+
                 const existing = saleLines.find((l) => l.uuid === item.uuid);
                 if (existing) {
                     existing.qty += qty;
@@ -256,11 +295,175 @@
                     });
                 }
                 renderSale();
+                resetScanInputs();
+            }
 
+            function resetScanInputs() {
                 uuidInput.value = '';
                 qtyInput.value = 1;
                 uuidInput.focus();
             }
+
+            // --- Tickets: one student ID per ticket -------------------------
+            // Items in the "Tickets" sub-category (matched like the server's
+            // isTicketSubcategory) open a dialog asking for one student ID per
+            // ticket. Each ID is looked up as it's typed or scanned; the server
+            // checks them all again when the sale completes.
+            const ticketDialog = document.getElementById('ticket-dialog');
+            const ticketFieldsEl = document.getElementById('ticket-id-fields');
+            const ticketOkBtn = document.getElementById('ticket-ok');
+            let ticketItem = null;
+            let ticketInputs = [];
+            let lookups = new Map();      // student ID -> lookup result
+            let refreshTimer = null;
+
+            const isTicketItem = (item) => String(item.subcategory ?? '').trim().toLowerCase() === 'tickets';
+
+            function openTicketDialog(item, qty) {
+                ticketItem = item;
+                lookups = new Map();
+                document.getElementById('ticket-dialog-title').innerText = `Student ID${qty === 1 ? '' : 's'} for ${item.name}`;
+                document.getElementById('ticket-dialog-note').innerText = qty === 1
+                    ? 'Enter or scan the buyer’s student ID.'
+                    : `Enter or scan a student ID for each of the ${qty} tickets.`;
+                ticketFieldsEl.innerHTML = Array.from({ length: qty }, (_, i) => `
+                    <div class="form-group ticket-id-row">
+                        <label for="ticket-id-${i}">${qty === 1 ? 'Student ID' : `Ticket ${i + 1} — Student ID`}</label>
+                        <input type="text" id="ticket-id-${i}" inputmode="numeric" autocomplete="off">
+                        <small class="ticket-id-status" id="ticket-id-status-${i}"></small>
+                    </div>`).join('');
+                ticketInputs = [...ticketFieldsEl.querySelectorAll('input')];
+                refreshTicketFields();
+                ticketDialog.showModal();
+                ticketInputs[0].focus();
+            }
+
+            async function lookupStudent(id) {
+                lookups.set(id, null);
+                let result;
+                try {
+                    const res = await authFetch(`/api/students/${encodeURIComponent(id)}?ticket=${encodeURIComponent(ticketItem.uuid)}`);
+                    result = res.ok ? await res.json() : { error: 'Could not check this ID.' };
+                } catch {
+                    result = { error: 'Could not check this ID.' };
+                }
+                lookups.set(id, result);
+                refreshTicketFields();
+            }
+
+            // Recomputes every row's status from the lookups so far (starting a
+            // lookup for any new ID); Add to Sale only enables when all pass.
+            function refreshTicketFields() {
+                const ids = ticketInputs.map((input) => input.value.trim());
+                const inSale = new Set(saleLines.filter((l) => l.uuid === ticketItem.uuid).map((l) => l.studentId));
+                let allOk = true;
+
+                ids.forEach((id, i) => {
+                    let message = '';
+                    let ok = false;
+                    if (!id) {
+                        // nothing typed yet
+                    } else if (!/^\d+$/.test(id)) {
+                        message = 'Student IDs are numbers only.';
+                    } else if (inSale.has(id) || ids.indexOf(id) !== i) {
+                        message = 'This student ID is already on this sale.';
+                    } else if (!lookups.has(id)) {
+                        message = 'Checking…';
+                        lookupStudent(id);
+                    } else {
+                        const r = lookups.get(id);
+                        if (!r) message = 'Checking…';
+                        else if (r.error) message = r.error;
+                        else if (!r.valid) message = 'Not on the student list.';
+                        else if (r.held >= r.limit) message = `Already has a ${ticketItem.name}.`;
+                        else { ok = true; message = 'On the student list.'; }
+                    }
+                    const statusEl = document.getElementById(`ticket-id-status-${i}`);
+                    statusEl.innerText = message;
+                    statusEl.className = `ticket-id-status${message && message !== 'Checking…' ? (ok ? ' ok' : ' bad') : ''}`;
+                    allOk = allOk && ok;
+                });
+                ticketOkBtn.disabled = !allOk;
+            }
+
+            ticketFieldsEl.addEventListener('input', () => {
+                ticketOkBtn.disabled = true;
+                clearTimeout(refreshTimer);
+                refreshTimer = setTimeout(refreshTicketFields, 250);
+            });
+
+            // Enter (a scanner's usual suffix) moves to the next ID, then adds.
+            ticketFieldsEl.addEventListener('keydown', (e) => {
+                if (e.key !== 'Enter') return;
+                e.preventDefault();
+                clearTimeout(refreshTimer);
+                refreshTicketFields();
+                const next = ticketInputs[ticketInputs.indexOf(e.target) + 1];
+                if (next) next.focus();
+                else if (!ticketOkBtn.disabled) ticketOkBtn.click();
+            });
+
+            ticketOkBtn.addEventListener('click', () => {
+                for (const input of ticketInputs) {
+                    saleLines.push({
+                        uuid: ticketItem.uuid,
+                        name: ticketItem.name,
+                        variant_color: ticketItem.variant_color,
+                        variant_size: ticketItem.variant_size,
+                        price_cents: ticketItem.price_cents,
+                        qty: 1,
+                        studentId: input.value.trim(),
+                    });
+                }
+                ticketDialog.close();
+                renderSale();
+                resetScanInputs();
+            });
+
+            document.getElementById('ticket-cancel').addEventListener('click', () => ticketDialog.close());
+            ticketDialog.addEventListener('close', () => {
+                clearTimeout(refreshTimer);
+                uuidInput.focus();
+            });
+
+            // --- Student ID list upload --------------------------------------
+            const studentListResultEl = document.getElementById('student-list-result');
+
+            async function loadStudentListSummary() {
+                const res = await authFetch('/api/students');
+                if (!res.ok) return;
+                const { count, updatedAt } = await res.json();
+                document.getElementById('student-list-count').innerText = updatedAt
+                    ? `(${count} IDs, updated ${new Date(updatedAt).toLocaleDateString()})`
+                    : '(not uploaded yet)';
+            }
+
+            async function uploadStudentList() {
+                const file = document.getElementById('student-list-file').files[0];
+                studentListResultEl.style.display = '';
+                if (!file) {
+                    studentListResultEl.style.color = '#c0392b';
+                    studentListResultEl.innerText = 'Choose a CSV file first.';
+                    return;
+                }
+                const mode = document.querySelector('input[name="student-list-mode"]:checked').value;
+                const res = await authFetch('/api/students', {
+                    method: 'PUT',
+                    body: JSON.stringify({ csv: await file.text(), mode }),
+                });
+                const data = await res.json().catch(() => ({}));
+                if (res.ok) {
+                    studentListResultEl.style.color = '#27ae60';
+                    studentListResultEl.innerText = `${mode === 'add' ? 'Added' : 'Loaded'} ${data.received} IDs from the file. The list now has ${data.count}.`;
+                    loadStudentListSummary();
+                } else {
+                    studentListResultEl.style.color = '#c0392b';
+                    studentListResultEl.innerText = data.error || 'Upload failed.';
+                }
+            }
+
+            document.getElementById('student-list-upload').addEventListener('click', uploadStudentList);
+            loadStudentListSummary();
 
             async function completeSale() {
                 resultEl.style.display = 'none';
@@ -291,7 +494,7 @@
                 const res = await authFetch('/api/inventory/storefront-sale', {
                     method: 'POST',
                     body: JSON.stringify({
-                        lines: saleLines.map((l) => ({ uuid: l.uuid, qty: l.qty })),
+                        lines: saleLines.map((l) => ({ uuid: l.uuid, qty: l.qty, studentId: l.studentId })),
                         paymentMethod: paymentMethodInput.value,
                         location: locationInput.value,
                     }),

@@ -127,6 +127,7 @@
                             <th>Account</th>
                             <th>Payment</th>
                             <th>Location</th>
+                            <th>Student ID</th>
                             <th>Notes</th>
                         </tr>
                     </thead>
@@ -186,6 +187,7 @@
                             <td>${esc(t.account)}</td>
                             <td>${t.payment_method ? `<span class="status-badge pay-${t.payment_method}">${t.payment_method === 'online' ? 'Online' : 'Cash'}</span>` : '&mdash;'}</td>
                             <td>${t.location ? `<span class="status-badge loc-${t.location}">${t.location === 'cart' ? 'Cart' : 'Storefront'}</span>` : '&mdash;'}</td>
+                            <td>${t.student_id ? esc(t.student_id) : '&mdash;'}</td>
                             <td>${esc(t.notes)}</td>
                         </tr>
                     `).join('');

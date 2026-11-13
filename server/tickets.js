@@ -129,7 +129,99 @@ function checkTicketLines(userKey, ticketLines) {
     return null;
 }
 
+// --- Counter (storefront) ticket sales ---------------------------------------
+// A cash buyer at the register has no signed-in account, so the per-person
+// limit is keyed on student ID instead. Every ticket rung up at the counter
+// names one ID from the student_ids roster, and is recorded as its own
+// transactions row carrying that ID. The same TICKET_LIMIT_PER_ACCOUNT applies
+// per student, counting both counter sales and online orders that typed the ID.
+
+// Counter sales pick out tickets by sub-category ("Tickets", same matching as
+// the tax exemption in db.js), so a ticket filed there needs no uuid prefix.
+const TICKET_SUBCATEGORY = 'tickets';
+
+function isTicketSubcategory(subcategoryName) {
+    return String(subcategoryName ?? '').trim().toLowerCase() === TICKET_SUBCATEGORY;
+}
+
+function normalizeStudentId(raw) {
+    return String(raw ?? '').trim();
+}
+
+function isKnownStudentId(studentId) {
+    return !!db.prepare('SELECT 1 FROM student_ids WHERE id = ?').get(studentId);
+}
+
+// Tickets this student already holds: counter sales recorded under the ID,
+// plus online orders whose (optional, free-text) Student ID field matches —
+// paid, $0, or still open in Checkout, as in heldByAccount().
+function heldByStudent(studentId, itemUuid) {
+    const counter = db.prepare(`
+        SELECT COALESCE(SUM(-se.delta), 0) AS n
+        FROM transactions t
+        JOIN stock_events se ON se.id = t.ref_stock_event_id
+        WHERE t.source = 'storefront_sale' AND t.type = 'deposit'
+          AND t.student_id = ? AND se.item_uuid = ?
+    `).get(studentId, itemUuid).n;
+    const online = db.prepare(`
+        SELECT COALESCE(SUM(oi.qty), 0) AS n
+        FROM order_items oi
+        JOIN orders o ON o.id = oi.order_id
+        WHERE TRIM(o.student_id) = ? AND oi.item_uuid = ? AND o.status <> 'cancelled'
+          AND (o.payment_status IN ('paid', 'free')
+               OR (o.payment_status = 'unpaid' AND o.created_at >= ?))
+    `).get(studentId, itemUuid, openCheckoutCutoff()).n;
+    return counter + online;
+}
+
+// For the storefront pop-up: is this ID on the roster, and can it buy one more?
+function studentTicketStatus(studentId, itemUuid) {
+    const held = heldByStudent(studentId, itemUuid);
+    return {
+        studentId,
+        valid: isKnownStudentId(studentId),
+        held,
+        limit: TICKET_LIMIT_PER_ACCOUNT,
+    };
+}
+
+// Validates the ticket lines of a counter sale, each { item, studentId } for
+// one ticket. Returns an error message, or null if the sale may proceed.
+// Synchronous for the same reason as checkTicketLines().
+function checkCounterTicketLines(ticketLines) {
+    const perStudent = new Map();
+    const perItem = new Map();
+    for (const { item, studentId } of ticketLines) {
+        if (!studentId) return `Enter a student ID for each ${item.name}.`;
+        if (!isKnownStudentId(studentId)) return `Student ID ${studentId} isn't on the student list.`;
+
+        const key = `${item.uuid}\n${studentId}`;
+        perStudent.set(key, (perStudent.get(key) || 0) + 1);
+        const entry = perItem.get(item.uuid) || { item, qty: 0 };
+        entry.qty += 1;
+        perItem.set(item.uuid, entry);
+
+        const allowance = TICKET_LIMIT_PER_ACCOUNT - heldByStudent(studentId, item.uuid);
+        if (perStudent.get(key) > allowance) {
+            return allowance <= 0
+                ? `Student ID ${studentId} already has a ${item.name}.`
+                : `Student ID ${studentId} can buy only ${allowance} ${item.name}${allowance === 1 ? '' : 's'}.`;
+        }
+    }
+
+    for (const { item, qty } of perItem.values()) {
+        const available = availableStock(item.uuid);
+        if (qty > available) {
+            return available <= 0
+                ? `${item.name}s are sold out.`
+                : `Only ${available} ${item.name}${available === 1 ? '' : 's'} left.`;
+        }
+    }
+    return null;
+}
+
 module.exports = {
     TICKET_LIMIT_PER_ACCOUNT, TICKET_CHECKOUT_TTL_MS,
     isTicket, ticketStatus, releaseOpenTicketCheckouts, checkTicketLines,
+    isTicketSubcategory, normalizeStudentId, studentTicketStatus, checkCounterTicketLines,
 };

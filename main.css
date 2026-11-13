@@ -774,6 +774,31 @@ nav a.nav-hoco .material-symbols-outlined {
     font-size: 18px;
 }
 
+/* Storefront Sale — student ID per ticket (ticket dialog) and the roster upload */
+.ticket-id-row {
+    margin-bottom: 14px;
+}
+
+.ticket-id-status {
+    display: block;
+    min-height: 1.2em;
+    margin-top: 4px;
+    font-size: 0.85rem;
+    color: #888;
+}
+
+.ticket-id-status.ok {
+    color: #27ae60;
+}
+
+.ticket-id-status.bad {
+    color: #c0392b;
+}
+
+.student-list {
+    margin-top: 28px;
+}
+
 .sale-total-row {
     display: flex;
     justify-content: space-between;

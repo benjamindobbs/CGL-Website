@@ -363,6 +363,10 @@ db.exec(`
     --                  Staff pick it at time of sale, same as payment_method.
     --                  Only meaningful for source='storefront_sale' — '' (not
     --                  applicable) for online_order/adjustment rows.
+    --   student_id: the buyer of a counter-sold ticket (an item in the "Tickets"
+    --                  sub-category), checked against student_ids at the
+    --                  register. Ticket lines are written one row per ticket so
+    --                  each carries its own ID. '' on every other row.
     CREATE TABLE IF NOT EXISTS transactions (
         id                 INTEGER PRIMARY KEY AUTOINCREMENT,
         posted_at          INTEGER NOT NULL,
@@ -375,6 +379,7 @@ db.exec(`
         source             TEXT    NOT NULL CHECK(source IN ('storefront_sale','online_order','adjustment')),
         payment_method     TEXT    NOT NULL DEFAULT '',
         location           TEXT    NOT NULL DEFAULT '',
+        student_id         TEXT    NOT NULL DEFAULT '',
         ref_stock_event_id INTEGER,
         ref_order_id       INTEGER,
         actor_user_key     TEXT    NOT NULL DEFAULT '',
@@ -425,6 +430,15 @@ db.exec(`
     CREATE TABLE IF NOT EXISTS schedule_closures (
         date TEXT PRIMARY KEY,
         note TEXT NOT NULL DEFAULT ''
+    );
+
+    -- Every current student ID, uploaded as a CSV from the Storefront Sale page
+    -- (routes/students.js). A counter ticket sale must name an ID on this list.
+    -- Replaced wholesale each school year; past sales keep their own copy of
+    -- the ID in transactions.student_id.
+    CREATE TABLE IF NOT EXISTS student_ids (
+        id         TEXT    PRIMARY KEY,
+        created_at INTEGER NOT NULL
     );
 
     -- Small key/value store for app bookkeeping that must survive restarts
@@ -513,7 +527,7 @@ function normalizeCategory(value) {
 // --- Schema migrations -------------------------------------------------------
 // Bump SCHEMA_VERSION and add a matching `if (fromVersion < N)` block for each
 // change. PRAGMA user_version persists in the DB file, so each block runs once.
-const SCHEMA_VERSION = 11;
+const SCHEMA_VERSION = 12;
 const fromVersion = db.prepare('PRAGMA user_version').get().user_version;
 
 // True when the table already has the given column (used to make ADD COLUMN
@@ -722,6 +736,13 @@ for (const [col, type] of [['name_number', "TEXT NOT NULL DEFAULT ''"], ['method
     }
 }
 
+// v12: student ID on counter ticket sales. Column-guarded like v9; every
+// existing row predates it and keeps ''. student_ids comes from CREATE TABLE
+// IF NOT EXISTS above.
+if (!tableHasColumn('transactions', 'student_id')) {
+    db.exec("ALTER TABLE transactions ADD COLUMN student_id TEXT NOT NULL DEFAULT ''");
+}
+
 if (fromVersion < SCHEMA_VERSION) {
     db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`);
 }
@@ -784,13 +805,13 @@ function applyStockDelta({ itemUuid, delta, reason, actorUserKey, note = '', ref
 // report. Returns the stored row.
 function recordTransaction({
     postedAt = Date.now(), type, vendor, amountCents, taxCents = 0, account = '', notes = '',
-    source, paymentMethod = '', location = '', refStockEventId = null, refOrderId = null, actorUserKey = '',
+    source, paymentMethod = '', location = '', studentId = '', refStockEventId = null, refOrderId = null, actorUserKey = '',
 }) {
     const info = db.prepare(`
         INSERT INTO transactions
-            (posted_at, type, vendor, amount_cents, tax_cents, account, notes, source, payment_method, location, ref_stock_event_id, ref_order_id, actor_user_key, created_at)
-        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(postedAt, type, vendor, Math.round(amountCents), Math.round(taxCents), account, notes, source, paymentMethod, location, refStockEventId, refOrderId, actorUserKey, Date.now());
+            (posted_at, type, vendor, amount_cents, tax_cents, account, notes, source, payment_method, location, student_id, ref_stock_event_id, ref_order_id, actor_user_key, created_at)
+        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(postedAt, type, vendor, Math.round(amountCents), Math.round(taxCents), account, notes, source, paymentMethod, location, studentId, refStockEventId, refOrderId, actorUserKey, Date.now());
     return db.prepare('SELECT * FROM transactions WHERE id = ?').get(Number(info.lastInsertRowid));
 }
 

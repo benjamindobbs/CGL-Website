@@ -1,6 +1,7 @@
 const { Router } = require('express');
 const { db, applyStockDelta, recordTransaction, splitTaxInclusive, isSubcategoryTaxExempt, ITEM_SELECT } = require('../db');
 const { requireAdmin } = require('../staffAuth');
+const { isTicketSubcategory, normalizeStudentId, checkCounterTicketLines } = require('../tickets');
 
 function variantLabel(item) {
     const v = [item.variant_color, item.variant_size].filter(Boolean).join(' ');
@@ -31,6 +32,11 @@ router.post('/restock', (req, res) => {
 // multi-item purchase is one transaction total, not one per scan. Every line
 // is validated before anything is applied, so a bad line can't leave a
 // partially-rung sale.
+//
+// Tickets ("Tickets" sub-category) come one per line, qty 1, each with the
+// buyer's studentId; see checkCounterTicketLines() in server/tickets.js. No
+// `await` in here, so the ticket check and the writes below can't interleave
+// with another sale.
 router.post('/storefront-sale', (req, res) => {
     const { lines, paymentMethod, location } = req.body;
     if (!Array.isArray(lines) || lines.length === 0) {
@@ -53,12 +59,19 @@ router.post('/storefront-sale', (req, res) => {
         }
         const item = findItem(uuid);
         if (!item) return res.status(404).json({ error: `No item found for UUID ${uuid}` });
-        resolved.push({ item, quantity });
+        const isTicketLine = isTicketSubcategory(item.subcategory);
+        if (isTicketLine && quantity !== 1) {
+            return res.status(400).json({ error: `Ring up each ${item.name} on its own line with a student ID` });
+        }
+        resolved.push({ item, quantity, studentId: isTicketLine ? normalizeStudentId(line.studentId) : '', isTicketLine });
     }
+
+    const ticketError = checkCounterTicketLines(resolved.filter((r) => r.isTicketLine));
+    if (ticketError) return res.status(409).json({ error: ticketError });
 
     const soldItems = [];
     let totalCents = 0;
-    for (const { item, quantity } of resolved) {
+    for (const { item, quantity, studentId } of resolved) {
         const { stockEventId } = applyStockDelta({
             itemUuid: item.uuid, delta: -quantity, reason: 'storefront_sale', actorUserKey: req.userKey,
         });
@@ -79,6 +92,7 @@ router.post('/storefront-sale', (req, res) => {
             source: 'storefront_sale',
             paymentMethod,
             location,
+            studentId,
             refStockEventId: stockEventId,
             actorUserKey: req.userKey,
         });

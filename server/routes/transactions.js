@@ -23,7 +23,7 @@ function queryTransactions({ from, to, account, paymentMethod, location }) {
     }
 
     const sql = `
-        SELECT id, posted_at, type, vendor, amount_cents, tax_cents, account, notes, source, payment_method, location, ref_order_id
+        SELECT id, posted_at, type, vendor, amount_cents, tax_cents, account, notes, source, payment_method, location, student_id, ref_order_id
         FROM transactions
         ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
         ORDER BY posted_at DESC, id DESC
@@ -40,7 +40,7 @@ function signedDollars(row, cents = row.amount_cents) {
 
 // Amount is the gross (tax-inclusive) money moved; Tax is the CT sales tax
 // portion inside it; Net = Amount - Tax is the revenue.
-const CSV_HEADERS = ['Posted Date', 'Type', 'Vendor', 'Amount', 'Tax', 'Net', 'Account', 'Payment Method', 'Location', 'Notes'];
+const CSV_HEADERS = ['Posted Date', 'Type', 'Vendor', 'Amount', 'Tax', 'Net', 'Account', 'Payment Method', 'Location', 'Student ID', 'Notes'];
 
 router.get('/', (req, res) => {
     res.json(queryTransactions(req.query));
@@ -58,6 +58,7 @@ router.get('/export.csv', (req, res) => {
         t.account,
         t.payment_method === 'cash' ? 'Cash' : t.payment_method === 'online' ? 'Online' : '',
         t.location === 'storefront' ? 'Storefront' : t.location === 'cart' ? 'Cart' : '',
+        t.student_id,
         t.notes,
     ]));
 
